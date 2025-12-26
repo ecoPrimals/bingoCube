@@ -1,0 +1,21 @@
+[package]
+name = "bingocube-demos"
+description = "Interactive demonstrations of BingoCube"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "bingocube-demo"
+path = "src/main.rs"
+
+[dependencies]
+bingocube-core.workspace = true
+bingocube-adapters = { workspace = true, features = ["visual"] }
+eframe.workspace = true
+egui.workspace = true
+tracing = "0.1"
+tracing-subscriber = "0.3"
+

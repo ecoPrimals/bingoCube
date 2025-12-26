@@ -1,0 +1,19 @@
+[package]
+name = "bingocube-core"
+description = "Core BingoCube implementation: two-board cross-binding with progressive reveal"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+blake3.workspace = true
+rand.workspace = true
+rand_chacha = "0.3"
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+criterion = "0.5"
+

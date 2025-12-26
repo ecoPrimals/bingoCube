@@ -1,0 +1,66 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
+*.o
+*.so
+*.a
+*.dylib
+*.dll
+*.exe
+
+# Test artifacts
+/test-output/
+/coverage/
+
+# Documentation
+/target/doc/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# OS files
+Thumbs.db
+.directory
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Local configuration
+.env
+.env.local
+config.local.toml
+
+# Editor directories
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Coverage reports
+*.profraw
+*.profdata
+/coverage/
+/target/coverage/
+
+# Benchmarks
+/target/criterion/
+
+# Cache
+.cache/
+

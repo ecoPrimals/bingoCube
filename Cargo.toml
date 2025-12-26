@@ -1,0 +1,27 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "core",
+    "adapters",
+    "demos",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+repository = "https://github.com/ecoPrimals/bingoCube"
+authors = ["ecoPrimals Team"]
+description = "Human-verifiable cryptographic commitment system"
+
+[workspace.dependencies]
+bingocube-core = { path = "core", version = "0.1.0" }
+bingocube-adapters = { path = "adapters", version = "0.1.0" }
+blake3 = "1.5"
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "1.0"
+rand = "0.8"
+egui = "0.28"
+eframe = "0.28"
+

@@ -1,0 +1,32 @@
+[package]
+name = "bingocube-adapters"
+description = "Visualization adapters for BingoCube - helps systems render BingoCube data"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+bingocube-core.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+# Visual adapter dependencies (optional)
+egui = { workspace = true, optional = true }
+
+# Audio adapter dependencies (optional)
+# rodio = { version = "0.19", optional = true }
+
+# Animation adapter dependencies (optional)
+# Will be removed when extracted
+
+[features]
+default = []
+visual = ["egui"]
+audio = []  # rodio when ALSA available
+animation = []  # Will be feature-gated properly
+all = ["visual", "audio", "animation"]
+
+[dev-dependencies]
+
