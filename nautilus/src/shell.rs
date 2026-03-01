@@ -16,7 +16,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::evolution::{Evolution, EvolutionConfig};
+use crate::constraints::{DriftAction, DriftMonitor, EdgeSeeder};
+use crate::evolution::{Evolution, EvolutionConfig, SelectionMethod};
 use crate::population::Population;
 use crate::readout::LinearReadout;
 use crate::response::{ReservoirInput, ResponseVector};
@@ -60,6 +61,12 @@ pub struct GenerationRecord {
 
     /// Number of training samples used for evaluation.
     pub n_training_samples: usize,
+
+    /// N_e * s ratio at this generation.
+    pub ne_s: f64,
+
+    /// Action taken by the drift monitor.
+    pub drift_action: DriftAction,
 }
 
 /// Configuration for the nautilus shell.
@@ -134,6 +141,13 @@ pub struct NautilusShell {
 
     /// Instances that have contributed to this shell (via merge).
     pub lineage: Vec<InstanceId>,
+
+    /// Drift monitor tracking N_e * s across generations.
+    pub drift_monitor: DriftMonitor,
+
+    /// Concept edge features detected during evolution (normalized 0..1).
+    /// Used by edge seeding to bias new boards toward prediction failure regions.
+    pub concept_edges: Vec<Vec<f64>>,
 }
 
 impl NautilusShell {
@@ -158,6 +172,8 @@ impl NautilusShell {
             history: Vec::new(),
             origin: instance_id.clone(),
             lineage: vec![instance_id],
+            drift_monitor: DriftMonitor::default(),
+            concept_edges: Vec::new(),
         }
     }
 
@@ -183,6 +199,8 @@ impl NautilusShell {
             history: Vec::new(),
             origin: instance_id.clone(),
             lineage: vec![instance_id],
+            drift_monitor: DriftMonitor::default(),
+            concept_edges: Vec::new(),
         }
     }
 
@@ -195,8 +213,10 @@ impl NautilusShell {
     /// 1. Project inputs through population → ensemble responses
     /// 2. Train the readout on (responses, targets)
     /// 3. Evaluate board fitness
-    /// 4. Breed next generation
-    /// 5. Record the generation
+    /// 4. Record drift monitor and apply recommended action
+    /// 5. Inject edge-seeded boards if concept edges are known
+    /// 6. Breed next generation
+    /// 7. Record the generation
     ///
     /// Returns the MSE of the readout after training.
     pub fn evolve_generation(
@@ -220,20 +240,83 @@ impl NautilusShell {
         // 3. Evaluate board fitness
         self.current_population.evaluate_fitness(inputs, targets);
 
-        // 4. Record generation
+        // 4. Drift monitor: record and apply
+        let mean_fit = self.current_population.mean_fitness();
+        let best_fit = self.current_population.best_fitness();
+        let pop_size = self.current_population.size();
+        self.drift_monitor.record(
+            self.current_population.generation,
+            pop_size,
+            mean_fit,
+            best_fit,
+        );
+        let drift_action = self.drift_monitor.recommendation();
+        let mut evo_config = self.config.evolution.clone();
+
+        match &drift_action {
+            DriftAction::IncreaseSelection => {
+                match &mut evo_config.selection {
+                    SelectionMethod::Elitism { survivors } => {
+                        *survivors = (*survivors / 2).max(1);
+                    }
+                    SelectionMethod::Tournament { tournament_size } => {
+                        *tournament_size = (*tournament_size + 2).min(pop_size);
+                    }
+                    SelectionMethod::Roulette => {}
+                }
+            }
+            DriftAction::IncreasePop { factor } => {
+                let new_size = (pop_size as f64 * factor).ceil() as usize;
+                let deficit = new_size.saturating_sub(pop_size);
+                if deficit > 0 {
+                    for _ in 0..deficit {
+                        let board = bingocube_core::Board::generate(
+                            &self.config.board_config,
+                            &mut rng,
+                        )
+                        .expect("valid config");
+                        self.current_population.boards.push(board);
+                    }
+                }
+            }
+            DriftAction::Continue => {}
+        }
+
+        // 5. Edge seeding: replace worst boards with edge-biased boards
+        if !self.concept_edges.is_empty() {
+            let n_edge = (pop_size / 4).max(1).min(self.concept_edges.len());
+            let ranked = self.current_population.ranked_boards();
+            let worst_indices: Vec<usize> = ranked.iter().rev().take(n_edge).map(|&(i, _)| i).collect();
+
+            for (slot, edge_features) in worst_indices.iter().zip(self.concept_edges.iter()) {
+                if let Ok(mut seeded) = EdgeSeeder::seed_boards(
+                    &self.config.board_config, 1, edge_features, &mut rng,
+                ) {
+                    if let Some(board) = seeded.pop() {
+                        self.current_population.boards[*slot] = board;
+                    }
+                }
+            }
+        }
+
+        let ne_s = self.drift_monitor.latest_ne_s();
+
+        // 6. Record generation
         self.history.push(GenerationRecord {
             generation: self.current_population.generation,
-            mean_fitness: self.current_population.mean_fitness(),
-            best_fitness: self.current_population.best_fitness(),
+            mean_fitness: mean_fit,
+            best_fitness: best_fit,
             population_size: self.current_population.size(),
             origin_instance: self.origin.clone(),
             n_training_samples: inputs.len(),
+            ne_s,
+            drift_action: drift_action.clone(),
         });
 
-        // 5. Breed next generation
+        // 7. Breed next generation
         let next = Evolution::next_generation(
             &self.current_population,
-            &self.config.evolution,
+            &evo_config,
             &mut rng,
         )
         .expect("evolution should succeed");
@@ -263,18 +346,76 @@ impl NautilusShell {
 
         self.current_population.evaluate_fitness(inputs, targets);
 
+        let mean_fit = self.current_population.mean_fitness();
+        let best_fit = self.current_population.best_fitness();
+        let pop_size = self.current_population.size();
+        self.drift_monitor.record(
+            self.current_population.generation,
+            pop_size,
+            mean_fit,
+            best_fit,
+        );
+        let drift_action = self.drift_monitor.recommendation();
+        let mut evo_config = self.config.evolution.clone();
+
+        match &drift_action {
+            DriftAction::IncreaseSelection => {
+                match &mut evo_config.selection {
+                    SelectionMethod::Elitism { survivors } => {
+                        *survivors = (*survivors / 2).max(1);
+                    }
+                    SelectionMethod::Tournament { tournament_size } => {
+                        *tournament_size = (*tournament_size + 2).min(pop_size);
+                    }
+                    SelectionMethod::Roulette => {}
+                }
+            }
+            DriftAction::IncreasePop { factor } => {
+                let new_size = (pop_size as f64 * factor).ceil() as usize;
+                let deficit = new_size.saturating_sub(pop_size);
+                for _ in 0..deficit {
+                    let board = bingocube_core::Board::generate(
+                        &self.config.board_config,
+                        &mut rng,
+                    )
+                    .expect("valid config");
+                    self.current_population.boards.push(board);
+                }
+            }
+            DriftAction::Continue => {}
+        }
+
+        if !self.concept_edges.is_empty() {
+            let n_edge = (pop_size / 4).max(1).min(self.concept_edges.len());
+            let ranked = self.current_population.ranked_boards();
+            let worst_indices: Vec<usize> = ranked.iter().rev().take(n_edge).map(|&(i, _)| i).collect();
+            for (slot, edge_features) in worst_indices.iter().zip(self.concept_edges.iter()) {
+                if let Ok(mut seeded) = EdgeSeeder::seed_boards(
+                    &self.config.board_config, 1, edge_features, &mut rng,
+                ) {
+                    if let Some(board) = seeded.pop() {
+                        self.current_population.boards[*slot] = board;
+                    }
+                }
+            }
+        }
+
+        let ne_s = self.drift_monitor.latest_ne_s();
+
         self.history.push(GenerationRecord {
             generation: self.current_population.generation,
-            mean_fitness: self.current_population.mean_fitness(),
-            best_fitness: self.current_population.best_fitness(),
+            mean_fitness: mean_fit,
+            best_fitness: best_fit,
             population_size: self.current_population.size(),
             origin_instance: self.origin.clone(),
             n_training_samples: inputs.len(),
+            ne_s,
+            drift_action: drift_action.clone(),
         });
 
         let next = Evolution::next_generation(
             &self.current_population,
-            &self.config.evolution,
+            &evo_config,
             &mut rng,
         )
         .expect("evolution should succeed");
@@ -304,7 +445,12 @@ impl NautilusShell {
         Self {
             origin: new_instance,
             lineage,
-            ..inherited
+            drift_monitor: inherited.drift_monitor,
+            concept_edges: inherited.concept_edges,
+            config: inherited.config,
+            current_population: inherited.current_population,
+            readout: inherited.readout,
+            history: inherited.history,
         }
     }
 
@@ -377,6 +523,171 @@ impl NautilusShell {
     /// Number of distinct instances in the lineage.
     pub fn lineage_depth(&self) -> usize {
         self.lineage.len()
+    }
+
+    /// Register concept edges — regions of input space where predictions fail.
+    ///
+    /// Each entry is a vector of normalized features (0..1) representing
+    /// the edge region. During evolution, the worst boards will be replaced
+    /// with edge-seeded boards biased toward these regions.
+    pub fn set_concept_edges(&mut self, edges: Vec<Vec<f64>>) {
+        self.concept_edges = edges;
+    }
+
+    /// Detect concept edges via leave-one-out cross-validation.
+    ///
+    /// Returns indices of samples where LOO prediction error exceeds
+    /// `threshold` times the mean error — these are the concept edges.
+    pub fn detect_concept_edges(
+        &self,
+        inputs: &[ReservoirInput],
+        targets: &[Vec<f64>],
+        threshold: f64,
+    ) -> Vec<usize> {
+        if inputs.len() < 3 {
+            return Vec::new();
+        }
+
+        let responses: Vec<ResponseVector> = inputs
+            .iter()
+            .map(|inp| self.current_population.project(inp))
+            .collect();
+
+        let mut loo_errors = Vec::with_capacity(inputs.len());
+
+        for leave_out in 0..inputs.len() {
+            let train_r: Vec<_> = responses.iter().enumerate()
+                .filter(|&(i, _)| i != leave_out)
+                .map(|(_, r)| r.clone())
+                .collect();
+            let train_t: Vec<_> = targets.iter().enumerate()
+                .filter(|&(i, _)| i != leave_out)
+                .map(|(_, t)| t.clone())
+                .collect();
+
+            let mut loo_readout = LinearReadout::new(self.readout.input_dim, self.readout.output_dim)
+                .with_ridge(self.config.ridge_lambda);
+            loo_readout.train(&train_r, &train_t);
+
+            let pred = loo_readout.predict(&responses[leave_out]);
+            let err: f64 = pred.iter().zip(targets[leave_out].iter())
+                .map(|(p, t)| (p - t).powi(2))
+                .sum::<f64>()
+                .sqrt();
+            loo_errors.push(err);
+        }
+
+        let mean_err = loo_errors.iter().sum::<f64>() / loo_errors.len() as f64;
+        let edge_threshold = mean_err * threshold;
+
+        loo_errors.iter().enumerate()
+            .filter(|&(_, &e)| e > edge_threshold)
+            .map(|(i, _)| i)
+            .collect()
+    }
+
+    /// Whether the drift monitor indicates the population is drifting.
+    pub fn is_drifting(&self) -> bool {
+        self.drift_monitor.is_drifting()
+    }
+
+    /// Latest N_e * s ratio from the drift monitor.
+    pub fn latest_ne_s(&self) -> f64 {
+        self.drift_monitor.latest_ne_s()
+    }
+
+    // ─── AKD1000 Export ───
+
+    /// Export readout weights as quantized int4 for AKD1000 FullyConnected layer.
+    ///
+    /// The AKD1000 NPU uses int4 weights [-8, 7]. We quantize via symmetric
+    /// min-max scaling: w_q = round(w * scale), scale = 7 / max(|w|).
+    ///
+    /// Returns (quantized_weights, scales, biases) where:
+    /// - quantized_weights: [n_targets][input_dim] as i8 (int4 range)
+    /// - scales: per-target dequantization scale factors
+    /// - biases: per-target bias values (kept in f64)
+    pub fn export_akd1000_weights(&self) -> Akd1000Export {
+        let n_targets = self.readout.output_dim;
+        let input_dim = self.readout.input_dim;
+
+        let mut quantized = vec![vec![0i8; input_dim]; n_targets];
+        let mut scales = vec![0.0f64; n_targets];
+
+        for t in 0..n_targets {
+            let w_abs_max = self.readout.weights[t]
+                .iter()
+                .map(|w| w.abs())
+                .fold(0.0f64, f64::max)
+                .max(1e-10);
+
+            let scale = 7.0 / w_abs_max;
+            scales[t] = scale;
+
+            for i in 0..input_dim {
+                let q = (self.readout.weights[t][i] * scale).round() as i8;
+                quantized[t][i] = q.clamp(-8, 7);
+            }
+        }
+
+        Akd1000Export {
+            quantized_weights: quantized,
+            scales,
+            biases: self.readout.bias.clone(),
+            input_dim,
+            n_targets,
+        }
+    }
+}
+
+/// AKD1000 int4-quantized weight export for FullyConnected layer deployment.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Akd1000Export {
+    /// Quantized weights in [-8, 7] (int4 range), shape [n_targets][input_dim].
+    pub quantized_weights: Vec<Vec<i8>>,
+
+    /// Per-target dequantization scale: w_float ≈ w_q / scale.
+    pub scales: Vec<f64>,
+
+    /// Bias vector (kept in full precision).
+    pub biases: Vec<f64>,
+
+    /// Input dimensionality.
+    pub input_dim: usize,
+
+    /// Number of output targets.
+    pub n_targets: usize,
+}
+
+impl Akd1000Export {
+    /// Dequantize and predict (for validation against hardware).
+    pub fn predict_dequantized(&self, activations: &[f64]) -> Vec<f64> {
+        let mut output = self.biases.clone();
+        for t in 0..self.n_targets {
+            let scale = self.scales[t];
+            for i in 0..self.input_dim {
+                let w_approx = self.quantized_weights[t][i] as f64 / scale;
+                let x = activations.get(i).copied().unwrap_or(0.0);
+                output[t] += w_approx * x;
+            }
+        }
+        output
+    }
+
+    /// Compute quantization error (MSE) against the original readout.
+    pub fn quantization_mse(&self, readout: &LinearReadout, responses: &[ResponseVector]) -> f64 {
+        if responses.is_empty() {
+            return 0.0;
+        }
+        let mut total = 0.0;
+        for resp in responses {
+            let orig = readout.predict(resp);
+            let quant = self.predict_dequantized(&resp.activations);
+            for (o, q) in orig.iter().zip(quant.iter()) {
+                total += (o - q).powi(2);
+            }
+        }
+        total / responses.len() as f64
     }
 }
 
@@ -534,5 +845,159 @@ mod tests {
         let pred_orig = shell.predict(&test_input);
         let pred_restored = restored.predict(&test_input);
         assert_eq!(pred_orig, pred_restored);
+    }
+
+    #[test]
+    fn test_drift_monitor_wired_into_evolution() {
+        let config = ShellConfig {
+            population_size: 8,
+            n_targets: 1,
+            ..Default::default()
+        };
+
+        let id = InstanceId::new("driftlab");
+        let mut shell = NautilusShell::from_seed(config, id, 42);
+        let (inputs, targets) = synthetic_dataset(50);
+
+        for gen in 0..10 {
+            shell.evolve_generation_seeded(&inputs, &targets, 100 + gen);
+        }
+
+        // Drift monitor should have 10 entries
+        assert_eq!(shell.drift_monitor.history.len(), 10);
+
+        // Each generation record should have ne_s and drift_action
+        for record in &shell.history {
+            assert!(record.ne_s >= 0.0);
+        }
+
+        // Latest ne_s should be accessible
+        let ne_s = shell.latest_ne_s();
+        assert!(ne_s >= 0.0);
+    }
+
+    #[test]
+    fn test_edge_seeding_integration() {
+        let config = ShellConfig {
+            population_size: 8,
+            n_targets: 1,
+            ..Default::default()
+        };
+
+        let id = InstanceId::new("edgelab");
+        let mut shell = NautilusShell::from_seed(config, id, 42);
+        let (inputs, targets) = synthetic_dataset(50);
+
+        // Evolve a few generations without edges
+        for gen in 0..3 {
+            shell.evolve_generation_seeded(&inputs, &targets, 100 + gen);
+        }
+
+        // Set concept edges and evolve more
+        shell.set_concept_edges(vec![vec![0.85, 0.3, 0.5]]);
+        for gen in 3..8 {
+            shell.evolve_generation_seeded(&inputs, &targets, 100 + gen);
+        }
+
+        assert_eq!(shell.generation(), 8);
+        assert_eq!(shell.concept_edges.len(), 1);
+    }
+
+    #[test]
+    fn test_akd1000_export() {
+        let config = ShellConfig {
+            population_size: 4,
+            n_targets: 2,
+            ..Default::default()
+        };
+
+        let id = InstanceId::new("akd_lab");
+        let mut shell = NautilusShell::from_seed(config, id, 42);
+        let (inputs, targets_1) = synthetic_dataset(30);
+        let targets_2: Vec<Vec<f64>> = targets_1.iter()
+            .map(|t| vec![t[0], t[0] * 2.0])
+            .collect();
+
+        for gen in 0..5 {
+            shell.evolve_generation_seeded(&inputs, &targets_2, 100 + gen);
+        }
+
+        let export = shell.export_akd1000_weights();
+
+        assert_eq!(export.n_targets, 2);
+        assert_eq!(export.quantized_weights.len(), 2);
+        assert_eq!(export.scales.len(), 2);
+        assert_eq!(export.biases.len(), 2);
+
+        // All quantized weights should be in int4 range [-8, 7]
+        for row in &export.quantized_weights {
+            for &w in row {
+                assert!(w >= -8 && w <= 7, "weight {w} outside int4 range");
+            }
+        }
+
+        // Dequantized predictions should be close to original
+        let responses: Vec<ResponseVector> = inputs.iter()
+            .map(|inp| shell.current_population.project(inp))
+            .collect();
+        let quant_mse = export.quantization_mse(&shell.readout, &responses);
+        assert!(quant_mse < 1.0, "quantization MSE too high: {quant_mse}");
+
+        // Serialization roundtrip
+        let json = serde_json::to_string(&export).unwrap();
+        let restored: Akd1000Export = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.quantized_weights, export.quantized_weights);
+    }
+
+    #[test]
+    fn test_concept_edge_detection() {
+        let config = ShellConfig {
+            population_size: 8,
+            n_targets: 1,
+            ..Default::default()
+        };
+
+        let id = InstanceId::new("concept_lab");
+        let mut shell = NautilusShell::from_seed(config, id, 42);
+
+        // Create data with a discontinuity at x=0.5
+        let n = 40;
+        let inputs: Vec<ReservoirInput> = (0..n)
+            .map(|i| {
+                let x = i as f64 / n as f64;
+                ReservoirInput::Continuous(vec![x, x.sin(), x.cos()])
+            })
+            .collect();
+        let targets: Vec<Vec<f64>> = (0..n)
+            .map(|i| {
+                let x = i as f64 / n as f64;
+                if x < 0.5 { vec![x] } else { vec![x + 2.0] }
+            })
+            .collect();
+
+        for gen in 0..5 {
+            shell.evolve_generation_seeded(&inputs, &targets, 100 + gen);
+        }
+
+        let edges = shell.detect_concept_edges(&inputs, &targets, 2.0);
+        // Should find at least some edges near the discontinuity
+        assert!(!edges.is_empty(), "should detect concept edges at the discontinuity");
+    }
+
+    #[test]
+    fn test_drift_action_serialization() {
+        use crate::constraints::DriftAction;
+
+        let actions = vec![
+            DriftAction::Continue,
+            DriftAction::IncreaseSelection,
+            DriftAction::IncreasePop { factor: 2.0 },
+        ];
+
+        for action in &actions {
+            let json = serde_json::to_string(action).unwrap();
+            let restored: DriftAction = serde_json::from_str(&json).unwrap();
+            assert_eq!(*action, restored);
+        }
     }
 }

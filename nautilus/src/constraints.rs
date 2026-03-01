@@ -96,13 +96,12 @@ impl DriftMonitor {
 }
 
 /// Action recommended by the drift monitor.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DriftAction {
     /// Selection is working, continue normally.
     Continue,
     /// Increase selection pressure (more elites, larger tournaments).
     IncreaseSelection,
-    /// Increase population size by the given factor.
     /// Increase population size by the given factor.
     IncreasePop {
         /// Multiplication factor for population size.

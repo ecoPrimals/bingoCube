@@ -22,3 +22,19 @@ serde_json = "1.0"
 [[example]]
 name = "shell_lifecycle"
 required-features = []
+
+[[example]]
+name = "live_qcd_prediction"
+required-features = []
+
+[[example]]
+name = "quenched_to_dynamical"
+required-features = []
+
+[[example]]
+name = "predict_live_exp029"
+required-features = []
+
+[[example]]
+name = "full_brain_rehearsal"
+required-features = []

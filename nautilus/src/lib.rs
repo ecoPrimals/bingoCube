@@ -54,7 +54,7 @@ pub use response::{BoardResponse, ReservoirInput, ResponseVector};
 pub use population::{Population, FitnessRecord};
 pub use evolution::{Evolution, EvolutionConfig, SelectionMethod};
 pub use readout::LinearReadout;
-pub use shell::{NautilusShell, ShellConfig, GenerationRecord, InstanceId};
+pub use shell::{NautilusShell, ShellConfig, GenerationRecord, InstanceId, Akd1000Export};
 pub use constraints::{ConstraintLevel, DriftMonitor, DriftAction, EdgeSeeder, board_satisfies};
 pub use brain::{NautilusBrain, NautilusBrainConfig, BetaObservation};
 
