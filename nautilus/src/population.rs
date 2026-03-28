@@ -5,7 +5,7 @@
 //! combinatorial diversity that replaces temporal memory in the feed-forward
 //! architecture.
 
-use bingocube_core::{Board, Config, BingoCubeError};
+use bingocube_core::{BingoCubeError, Board, Config};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
@@ -83,11 +83,7 @@ impl Population {
     /// For each board, computes the correlation between its individual response
     /// and the target values across all samples. Boards whose responses vary
     /// predictably with the target get high fitness.
-    pub fn evaluate_fitness(
-        &mut self,
-        inputs: &[ReservoirInput],
-        targets: &[Vec<f64>],
-    ) {
+    pub fn evaluate_fitness(&mut self, inputs: &[ReservoirInput], targets: &[Vec<f64>]) {
         assert_eq!(inputs.len(), targets.len(), "inputs and targets must match");
         if inputs.is_empty() {
             return;
@@ -124,11 +120,8 @@ impl Population {
                 target_correlations.push(corr);
             }
 
-            let fitness = target_correlations
-                .iter()
-                .map(|c| c.abs())
-                .sum::<f64>()
-                / n_targets as f64;
+            let fitness =
+                target_correlations.iter().map(|c| c.abs()).sum::<f64>() / n_targets as f64;
 
             records.push(FitnessRecord {
                 board_idx,
@@ -225,9 +218,7 @@ mod tests {
             .map(|i| ReservoirInput::Continuous(vec![i as f64 / 20.0, (i as f64).sin()]))
             .collect();
 
-        let targets: Vec<Vec<f64>> = (0..20)
-            .map(|i| vec![i as f64 / 20.0])
-            .collect();
+        let targets: Vec<Vec<f64>> = (0..20).map(|i| vec![i as f64 / 20.0]).collect();
 
         pop.evaluate_fitness(&inputs, &targets);
 

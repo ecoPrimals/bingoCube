@@ -38,7 +38,10 @@ fn main() {
     let mut homelab_shell = NautilusShell::from_seed(config.clone(), homelab_id, 42);
 
     println!("  Instance: {}", homelab_shell.origin.0);
-    println!("  Population: {} boards", homelab_shell.current_population.size());
+    println!(
+        "  Population: {} boards",
+        homelab_shell.current_population.size()
+    );
     println!(
         "  Response dim: {} ({}×{} cells × {} boards)",
         homelab_shell.current_population.response_dim(),
@@ -51,10 +54,16 @@ fn main() {
     // Synthetic "physics" data: predict sin(β) and β² from features
     let (inputs, targets) = generate_physics_data(100);
 
-    println!("  Training on {} samples, 2 target observables", inputs.len());
+    println!(
+        "  Training on {} samples, 2 target observables",
+        inputs.len()
+    );
     println!("  Evolving for 20 generations...\n");
 
-    println!("  {:>4}  {:>10}  {:>10}  {:>10}", "Gen", "MSE", "Mean Fit", "Best Fit");
+    println!(
+        "  {:>4}  {:>10}  {:>10}  {:>10}",
+        "Gen", "MSE", "Mean Fit", "Best Fit"
+    );
     println!("  {:─>4}  {:─>10}  {:─>10}  {:─>10}", "", "", "", "");
 
     for gen in 0..20 {
@@ -74,8 +83,14 @@ fn main() {
     let pred = homelab_shell.predict(&test_input);
     let expected = [0.5_f64.sin(), 0.25]; // sin(0.5), 0.5²
     println!("\n  Prediction at β=0.5:");
-    println!("    Target 0 (sin β): predicted={:.4}, actual={:.4}", pred[0], expected[0]);
-    println!("    Target 1 (β²):    predicted={:.4}, actual={:.4}", pred[1], expected[1]);
+    println!(
+        "    Target 0 (sin β): predicted={:.4}, actual={:.4}",
+        pred[0], expected[0]
+    );
+    println!(
+        "    Target 1 (β²):    predicted={:.4}, actual={:.4}",
+        pred[1], expected[1]
+    );
 
     // ─── Phase 2: Serialize and ship to field node ───
 
@@ -83,8 +98,15 @@ fn main() {
 
     let serialized = serde_json::to_string(&homelab_shell).unwrap();
     let shell_size = serialized.len();
-    println!("  Serialized shell: {} bytes ({:.1} KB)", shell_size, shell_size as f64 / 1024.0);
-    println!("  Contains {} generations of heritage", homelab_shell.history.len());
+    println!(
+        "  Serialized shell: {} bytes ({:.1} KB)",
+        shell_size,
+        shell_size as f64 / 1024.0
+    );
+    println!(
+        "  Contains {} generations of heritage",
+        homelab_shell.history.len()
+    );
 
     // Simulate network transfer
     let received: NautilusShell = serde_json::from_str(&serialized).unwrap();
@@ -100,13 +122,23 @@ fn main() {
     println!("  New instance: {}", field_shell.origin.0);
     println!("  Inherited generation: {}", field_shell.generation());
     println!("  Lineage depth: {} instances", field_shell.lineage_depth());
-    println!("  Lineage: {:?}", field_shell.lineage.iter().map(|l| l.name()).collect::<Vec<_>>());
+    println!(
+        "  Lineage: {:?}",
+        field_shell
+            .lineage
+            .iter()
+            .map(|l| l.name())
+            .collect::<Vec<_>>()
+    );
 
     // Field node sees slightly different data (different regime)
     let (field_inputs, field_targets) = generate_field_data(80);
 
     println!("\n  Field node evolving for 10 more generations on local data...\n");
-    println!("  {:>4}  {:>10}  {:>10}  {:>10}", "Gen", "MSE", "Mean Fit", "Best Fit");
+    println!(
+        "  {:>4}  {:>10}  {:>10}  {:>10}",
+        "Gen", "MSE", "Mean Fit", "Best Fit"
+    );
     println!("  {:─>4}  {:─>10}  {:─>10}  {:─>10}", "", "", "", "");
 
     for gen in 0..10 {
@@ -129,23 +161,41 @@ fn main() {
     let field_serialized = serde_json::to_string(&field_shell).unwrap();
     let field_received: NautilusShell = serde_json::from_str(&field_serialized).unwrap();
 
-    println!("  Homelab shell: gen {}, {} boards", homelab_shell.generation(), homelab_shell.current_population.size());
-    println!("  Field shell:   gen {}, {} boards", field_received.generation(), field_received.current_population.size());
+    println!(
+        "  Homelab shell: gen {}, {} boards",
+        homelab_shell.generation(),
+        homelab_shell.current_population.size()
+    );
+    println!(
+        "  Field shell:   gen {}, {} boards",
+        field_received.generation(),
+        field_received.current_population.size()
+    );
 
     homelab_shell.merge_shell(&field_received);
 
     println!("  After merge:");
-    println!("    Population: {} boards (best from both)", homelab_shell.current_population.size());
+    println!(
+        "    Population: {} boards (best from both)",
+        homelab_shell.current_population.size()
+    );
     println!("    Lineage depth: {}", homelab_shell.lineage_depth());
     println!("    Total history records: {}", homelab_shell.history.len());
     println!(
         "    Combined lineage: {:?}",
-        homelab_shell.lineage.iter().map(|l| l.name()).collect::<Vec<_>>()
+        homelab_shell
+            .lineage
+            .iter()
+            .map(|l| l.name())
+            .collect::<Vec<_>>()
     );
 
     // Continue evolving after merge
     println!("\n  Post-merge evolution (5 generations)...\n");
-    println!("  {:>4}  {:>10}  {:>10}  {:>10}", "Gen", "MSE", "Mean Fit", "Best Fit");
+    println!(
+        "  {:>4}  {:>10}  {:>10}  {:>10}",
+        "Gen", "MSE", "Mean Fit", "Best Fit"
+    );
     println!("  {:─>4}  {:─>10}  {:─>10}  {:─>10}", "", "", "", "");
 
     for gen in 0..5 {
@@ -162,7 +212,10 @@ fn main() {
 
     println!("\n━━━ Summary ━━━\n");
     println!("  Full fitness trajectory:");
-    println!("  {:>4}  {:>10}  {:>10}  {:>12}", "Gen", "Mean Fit", "Best Fit", "Origin");
+    println!(
+        "  {:>4}  {:>10}  {:>10}  {:>12}",
+        "Gen", "Mean Fit", "Best Fit", "Origin"
+    );
     println!("  {:─>4}  {:─>10}  {:─>10}  {:─>12}", "", "", "", "");
     for r in &homelab_shell.history {
         println!(
@@ -174,7 +227,10 @@ fn main() {
         );
     }
 
-    println!("\n  The nautilus shell has {} layers of heritage", homelab_shell.history.len());
+    println!(
+        "\n  The nautilus shell has {} layers of heritage",
+        homelab_shell.history.len()
+    );
     println!("  spanning {} instances.", homelab_shell.lineage_depth());
     println!("  Each layer wraps the previous, preserving heritage while adding adaptation.\n");
 }

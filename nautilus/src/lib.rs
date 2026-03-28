@@ -42,21 +42,21 @@
 #![warn(missing_docs)]
 #![warn(clippy::all)]
 
-mod response;
-mod population;
-mod evolution;
-mod readout;
-mod shell;
-mod constraints;
 mod brain;
+mod constraints;
+mod evolution;
+mod population;
+mod readout;
+mod response;
+mod shell;
 
-pub use response::{BoardResponse, ReservoirInput, ResponseVector};
-pub use population::{Population, FitnessRecord};
+pub use brain::{BetaObservation, NautilusBrain, NautilusBrainConfig};
+pub use constraints::{board_satisfies, ConstraintLevel, DriftAction, DriftMonitor, EdgeSeeder};
 pub use evolution::{Evolution, EvolutionConfig, SelectionMethod};
+pub use population::{FitnessRecord, Population};
 pub use readout::LinearReadout;
-pub use shell::{NautilusShell, ShellConfig, GenerationRecord, InstanceId, Akd1000Export};
-pub use constraints::{ConstraintLevel, DriftMonitor, DriftAction, EdgeSeeder, board_satisfies};
-pub use brain::{NautilusBrain, NautilusBrainConfig, BetaObservation};
+pub use response::{BoardResponse, ReservoirInput, ResponseVector};
+pub use shell::{Akd1000Export, GenerationRecord, InstanceId, NautilusShell, ShellConfig};
 
 /// Re-export core types used across the API.
-pub use bingocube_core::{Board, BingoCube, Config, BingoCubeError};
+pub use bingocube_core::{BingoCube, BingoCubeError, Board, Config};

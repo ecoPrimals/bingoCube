@@ -12,9 +12,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::constraints::{DriftMonitor, EdgeSeeder};
-use crate::shell::{InstanceId, NautilusShell, ShellConfig};
-use crate::response::ReservoirInput;
 use crate::evolution::EvolutionConfig;
+use crate::response::ReservoirInput;
+use crate::shell::{InstanceId, NautilusShell, ShellConfig};
 
 /// Configuration for the Nautilus brain subsystem.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -158,12 +158,8 @@ impl NautilusBrain {
 
             let traj = self.shell.fitness_trajectory();
             if let Some(last) = traj.last() {
-                self.drift.record(
-                    last.0,
-                    self.config.shell.population_size,
-                    last.1,
-                    last.2,
-                );
+                self.drift
+                    .record(last.0, self.config.shell.population_size, last.1, last.2);
             }
         }
 
@@ -173,7 +169,11 @@ impl NautilusBrain {
 
     /// Predict dynamical observables for a beta value.
     /// Returns (predicted_cg, predicted_plaq, predicted_acc), or None if untrained.
-    pub fn predict_dynamical(&self, beta: f64, quenched_plaq: Option<f64>) -> Option<(f64, f64, f64)> {
+    pub fn predict_dynamical(
+        &self,
+        beta: f64,
+        quenched_plaq: Option<f64>,
+    ) -> Option<(f64, f64, f64)> {
         if !self.trained {
             return None;
         }
@@ -235,11 +235,15 @@ impl NautilusBrain {
         let mut edges = Vec::new();
 
         for hold_out in 0..inputs.len() {
-            let train_in: Vec<_> = inputs.iter().enumerate()
+            let train_in: Vec<_> = inputs
+                .iter()
+                .enumerate()
                 .filter(|(i, _)| *i != hold_out)
                 .map(|(_, x)| x.clone())
                 .collect();
-            let train_tgt: Vec<_> = targets.iter().enumerate()
+            let train_tgt: Vec<_> = targets
+                .iter()
+                .enumerate()
                 .filter(|(i, _)| *i != hold_out)
                 .map(|(_, t)| t.clone())
                 .collect();
@@ -327,12 +331,14 @@ impl NautilusBrain {
     fn build_training_data(&self) -> (Vec<ReservoirInput>, Vec<Vec<f64>>) {
         let max_cg = self.max_cg();
 
-        let inputs: Vec<ReservoirInput> = self.observations
+        let inputs: Vec<ReservoirInput> = self
+            .observations
             .iter()
             .map(|obs| self.make_input(obs.beta, obs.quenched_plaq))
             .collect();
 
-        let targets: Vec<Vec<f64>> = self.observations
+        let targets: Vec<Vec<f64>> = self
+            .observations
             .iter()
             .map(|obs| {
                 vec![
@@ -358,9 +364,9 @@ impl NautilusBrain {
         ReservoirInput::Continuous(vec![
             beta / 7.0,
             q_plaq,
-            (anderson_r + 1.0).ln(),       // log-scaled level spacing
-            anderson_lam.abs().min(1.0),    // bounded eigenvalue
-            beta.sin() * 0.5 + 0.5,        // nonlinear beta transform
+            (anderson_r + 1.0).ln(),     // log-scaled level spacing
+            anderson_lam.abs().min(1.0), // bounded eigenvalue
+            beta.sin() * 0.5 + 0.5,      // nonlinear beta transform
         ])
     }
 
@@ -376,18 +382,21 @@ impl NautilusBrain {
             return 0.4;
         }
 
-        let closest = self.observations
+        let closest = self
+            .observations
             .iter()
             .filter(|o| o.quenched_plaq.is_some())
             .min_by(|a, b| {
-                (a.beta - beta).abs().partial_cmp(&(b.beta - beta).abs())
+                (a.beta - beta)
+                    .abs()
+                    .partial_cmp(&(b.beta - beta).abs())
                     .unwrap_or(std::cmp::Ordering::Equal)
             });
 
-        closest
-            .and_then(|o| o.quenched_plaq)
-            .unwrap_or(self.observations.iter().map(|o| o.plaquette).sum::<f64>()
-                / self.observations.len() as f64)
+        closest.and_then(|o| o.quenched_plaq).unwrap_or(
+            self.observations.iter().map(|o| o.plaquette).sum::<f64>()
+                / self.observations.len() as f64,
+        )
     }
 
     fn nearest_anderson_r(&self, beta: f64) -> f64 {
@@ -395,7 +404,9 @@ impl NautilusBrain {
             .iter()
             .filter(|o| o.anderson_r.is_some())
             .min_by(|a, b| {
-                (a.beta - beta).abs().partial_cmp(&(b.beta - beta).abs())
+                (a.beta - beta)
+                    .abs()
+                    .partial_cmp(&(b.beta - beta).abs())
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
             .and_then(|o| o.anderson_r)
@@ -407,7 +418,9 @@ impl NautilusBrain {
             .iter()
             .filter(|o| o.anderson_lambda_min.is_some())
             .min_by(|a, b| {
-                (a.beta - beta).abs().partial_cmp(&(b.beta - beta).abs())
+                (a.beta - beta)
+                    .abs()
+                    .partial_cmp(&(b.beta - beta).abs())
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
             .and_then(|o| o.anderson_lambda_min)

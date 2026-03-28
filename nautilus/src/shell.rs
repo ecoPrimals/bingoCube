@@ -84,6 +84,9 @@ pub struct ShellConfig {
     /// Number of readout targets.
     pub n_targets: usize,
 
+    /// Input dimensionality for reservoir.
+    pub input_dim: usize,
+
     /// Ridge regularization for readout.
     pub ridge_lambda: f64,
 
@@ -100,6 +103,7 @@ impl Default for ShellConfig {
             population_size: 16,
             evolution: EvolutionConfig::default(),
             n_targets: 1,
+            input_dim: 1,
             ridge_lambda: 1e-6,
             max_stored_generations: 5,
         }
@@ -162,8 +166,8 @@ impl NautilusShell {
         .expect("valid config");
 
         let response_dim = pop.response_dim();
-        let readout = LinearReadout::new(response_dim, config.n_targets)
-            .with_ridge(config.ridge_lambda);
+        let readout =
+            LinearReadout::new(response_dim, config.n_targets).with_ridge(config.ridge_lambda);
 
         Self {
             config,
@@ -189,8 +193,8 @@ impl NautilusShell {
         .expect("valid config");
 
         let response_dim = pop.response_dim();
-        let readout = LinearReadout::new(response_dim, config.n_targets)
-            .with_ridge(config.ridge_lambda);
+        let readout =
+            LinearReadout::new(response_dim, config.n_targets).with_ridge(config.ridge_lambda);
 
         Self {
             config,
@@ -219,11 +223,7 @@ impl NautilusShell {
     /// 7. Record the generation
     ///
     /// Returns the MSE of the readout after training.
-    pub fn evolve_generation(
-        &mut self,
-        inputs: &[ReservoirInput],
-        targets: &[Vec<f64>],
-    ) -> f64 {
+    pub fn evolve_generation(&mut self, inputs: &[ReservoirInput], targets: &[Vec<f64>]) -> f64 {
         assert_eq!(inputs.len(), targets.len());
         let mut rng = rand::thread_rng();
 
@@ -254,27 +254,23 @@ impl NautilusShell {
         let mut evo_config = self.config.evolution.clone();
 
         match &drift_action {
-            DriftAction::IncreaseSelection => {
-                match &mut evo_config.selection {
-                    SelectionMethod::Elitism { survivors } => {
-                        *survivors = (*survivors / 2).max(1);
-                    }
-                    SelectionMethod::Tournament { tournament_size } => {
-                        *tournament_size = (*tournament_size + 2).min(pop_size);
-                    }
-                    SelectionMethod::Roulette => {}
+            DriftAction::IncreaseSelection => match &mut evo_config.selection {
+                SelectionMethod::Elitism { survivors } => {
+                    *survivors = (*survivors / 2).max(1);
                 }
-            }
+                SelectionMethod::Tournament { tournament_size } => {
+                    *tournament_size = (*tournament_size + 2).min(pop_size);
+                }
+                SelectionMethod::Roulette => {}
+            },
             DriftAction::IncreasePop { factor } => {
                 let new_size = (pop_size as f64 * factor).ceil() as usize;
                 let deficit = new_size.saturating_sub(pop_size);
                 if deficit > 0 {
                     for _ in 0..deficit {
-                        let board = bingocube_core::Board::generate(
-                            &self.config.board_config,
-                            &mut rng,
-                        )
-                        .expect("valid config");
+                        let board =
+                            bingocube_core::Board::generate(&self.config.board_config, &mut rng)
+                                .expect("valid config");
                         self.current_population.boards.push(board);
                     }
                 }
@@ -286,12 +282,13 @@ impl NautilusShell {
         if !self.concept_edges.is_empty() {
             let n_edge = (pop_size / 4).max(1).min(self.concept_edges.len());
             let ranked = self.current_population.ranked_boards();
-            let worst_indices: Vec<usize> = ranked.iter().rev().take(n_edge).map(|&(i, _)| i).collect();
+            let worst_indices: Vec<usize> =
+                ranked.iter().rev().take(n_edge).map(|&(i, _)| i).collect();
 
             for (slot, edge_features) in worst_indices.iter().zip(self.concept_edges.iter()) {
-                if let Ok(mut seeded) = EdgeSeeder::seed_boards(
-                    &self.config.board_config, 1, edge_features, &mut rng,
-                ) {
+                if let Ok(mut seeded) =
+                    EdgeSeeder::seed_boards(&self.config.board_config, 1, edge_features, &mut rng)
+                {
                     if let Some(board) = seeded.pop() {
                         self.current_population.boards[*slot] = board;
                     }
@@ -314,12 +311,8 @@ impl NautilusShell {
         });
 
         // 7. Breed next generation
-        let next = Evolution::next_generation(
-            &self.current_population,
-            &evo_config,
-            &mut rng,
-        )
-        .expect("evolution should succeed");
+        let next = Evolution::next_generation(&self.current_population, &evo_config, &mut rng)
+            .expect("evolution should succeed");
         self.current_population = next;
 
         mse
@@ -359,26 +352,22 @@ impl NautilusShell {
         let mut evo_config = self.config.evolution.clone();
 
         match &drift_action {
-            DriftAction::IncreaseSelection => {
-                match &mut evo_config.selection {
-                    SelectionMethod::Elitism { survivors } => {
-                        *survivors = (*survivors / 2).max(1);
-                    }
-                    SelectionMethod::Tournament { tournament_size } => {
-                        *tournament_size = (*tournament_size + 2).min(pop_size);
-                    }
-                    SelectionMethod::Roulette => {}
+            DriftAction::IncreaseSelection => match &mut evo_config.selection {
+                SelectionMethod::Elitism { survivors } => {
+                    *survivors = (*survivors / 2).max(1);
                 }
-            }
+                SelectionMethod::Tournament { tournament_size } => {
+                    *tournament_size = (*tournament_size + 2).min(pop_size);
+                }
+                SelectionMethod::Roulette => {}
+            },
             DriftAction::IncreasePop { factor } => {
                 let new_size = (pop_size as f64 * factor).ceil() as usize;
                 let deficit = new_size.saturating_sub(pop_size);
                 for _ in 0..deficit {
-                    let board = bingocube_core::Board::generate(
-                        &self.config.board_config,
-                        &mut rng,
-                    )
-                    .expect("valid config");
+                    let board =
+                        bingocube_core::Board::generate(&self.config.board_config, &mut rng)
+                            .expect("valid config");
                     self.current_population.boards.push(board);
                 }
             }
@@ -388,11 +377,12 @@ impl NautilusShell {
         if !self.concept_edges.is_empty() {
             let n_edge = (pop_size / 4).max(1).min(self.concept_edges.len());
             let ranked = self.current_population.ranked_boards();
-            let worst_indices: Vec<usize> = ranked.iter().rev().take(n_edge).map(|&(i, _)| i).collect();
+            let worst_indices: Vec<usize> =
+                ranked.iter().rev().take(n_edge).map(|&(i, _)| i).collect();
             for (slot, edge_features) in worst_indices.iter().zip(self.concept_edges.iter()) {
-                if let Ok(mut seeded) = EdgeSeeder::seed_boards(
-                    &self.config.board_config, 1, edge_features, &mut rng,
-                ) {
+                if let Ok(mut seeded) =
+                    EdgeSeeder::seed_boards(&self.config.board_config, 1, edge_features, &mut rng)
+                {
                     if let Some(board) = seeded.pop() {
                         self.current_population.boards[*slot] = board;
                     }
@@ -413,12 +403,8 @@ impl NautilusShell {
             drift_action: drift_action.clone(),
         });
 
-        let next = Evolution::next_generation(
-            &self.current_population,
-            &evo_config,
-            &mut rng,
-        )
-        .expect("evolution should succeed");
+        let next = Evolution::next_generation(&self.current_population, &evo_config, &mut rng)
+            .expect("evolution should succeed");
         self.current_population = next;
 
         mse
@@ -481,11 +467,8 @@ impl NautilusShell {
         if merged_boards.len() < self.config.population_size {
             let mut rng = rand::thread_rng();
             while merged_boards.len() < self.config.population_size {
-                let board = bingocube_core::Board::generate(
-                    &self.config.board_config,
-                    &mut rng,
-                )
-                .expect("valid config");
+                let board = bingocube_core::Board::generate(&self.config.board_config, &mut rng)
+                    .expect("valid config");
                 merged_boards.push(board);
             }
         }
@@ -503,8 +486,7 @@ impl NautilusShell {
         // Merge history
         for record in &other.history {
             if !self.history.iter().any(|r| {
-                r.generation == record.generation
-                    && r.origin_instance == record.origin_instance
+                r.generation == record.generation && r.origin_instance == record.origin_instance
             }) {
                 self.history.push(record.clone());
             }
@@ -556,21 +538,28 @@ impl NautilusShell {
         let mut loo_errors = Vec::with_capacity(inputs.len());
 
         for leave_out in 0..inputs.len() {
-            let train_r: Vec<_> = responses.iter().enumerate()
+            let train_r: Vec<_> = responses
+                .iter()
+                .enumerate()
                 .filter(|&(i, _)| i != leave_out)
                 .map(|(_, r)| r.clone())
                 .collect();
-            let train_t: Vec<_> = targets.iter().enumerate()
+            let train_t: Vec<_> = targets
+                .iter()
+                .enumerate()
                 .filter(|&(i, _)| i != leave_out)
                 .map(|(_, t)| t.clone())
                 .collect();
 
-            let mut loo_readout = LinearReadout::new(self.readout.input_dim, self.readout.output_dim)
-                .with_ridge(self.config.ridge_lambda);
+            let mut loo_readout =
+                LinearReadout::new(self.readout.input_dim, self.readout.output_dim)
+                    .with_ridge(self.config.ridge_lambda);
             loo_readout.train(&train_r, &train_t);
 
             let pred = loo_readout.predict(&responses[leave_out]);
-            let err: f64 = pred.iter().zip(targets[leave_out].iter())
+            let err: f64 = pred
+                .iter()
+                .zip(targets[leave_out].iter())
                 .map(|(p, t)| (p - t).powi(2))
                 .sum::<f64>()
                 .sqrt();
@@ -580,7 +569,9 @@ impl NautilusShell {
         let mean_err = loo_errors.iter().sum::<f64>() / loo_errors.len() as f64;
         let edge_threshold = mean_err * threshold;
 
-        loo_errors.iter().enumerate()
+        loo_errors
+            .iter()
+            .enumerate()
             .filter(|&(_, &e)| e > edge_threshold)
             .map(|(i, _)| i)
             .collect()
@@ -794,16 +785,9 @@ mod tests {
         let (inputs, targets) = synthetic_dataset(50);
 
         // Two instances evolve independently
-        let mut shell_a = NautilusShell::from_seed(
-            config.clone(),
-            InstanceId::new("northgate"),
-            42,
-        );
-        let mut shell_b = NautilusShell::from_seed(
-            config,
-            InstanceId::new("strandgate"),
-            99,
-        );
+        let mut shell_a =
+            NautilusShell::from_seed(config.clone(), InstanceId::new("northgate"), 42);
+        let mut shell_b = NautilusShell::from_seed(config, InstanceId::new("strandgate"), 99);
 
         for gen in 0..5 {
             shell_a.evolve_generation_seeded(&inputs, &targets, 100 + gen);
@@ -914,9 +898,7 @@ mod tests {
         let id = InstanceId::new("akd_lab");
         let mut shell = NautilusShell::from_seed(config, id, 42);
         let (inputs, targets_1) = synthetic_dataset(30);
-        let targets_2: Vec<Vec<f64>> = targets_1.iter()
-            .map(|t| vec![t[0], t[0] * 2.0])
-            .collect();
+        let targets_2: Vec<Vec<f64>> = targets_1.iter().map(|t| vec![t[0], t[0] * 2.0]).collect();
 
         for gen in 0..5 {
             shell.evolve_generation_seeded(&inputs, &targets_2, 100 + gen);
@@ -937,7 +919,8 @@ mod tests {
         }
 
         // Dequantized predictions should be close to original
-        let responses: Vec<ResponseVector> = inputs.iter()
+        let responses: Vec<ResponseVector> = inputs
+            .iter()
             .map(|inp| shell.current_population.project(inp))
             .collect();
         let quant_mse = export.quantization_mse(&shell.readout, &responses);
@@ -971,7 +954,11 @@ mod tests {
         let targets: Vec<Vec<f64>> = (0..n)
             .map(|i| {
                 let x = i as f64 / n as f64;
-                if x < 0.5 { vec![x] } else { vec![x + 2.0] }
+                if x < 0.5 {
+                    vec![x]
+                } else {
+                    vec![x + 2.0]
+                }
             })
             .collect();
 
@@ -981,7 +968,10 @@ mod tests {
 
         let edges = shell.detect_concept_edges(&inputs, &targets, 2.0);
         // Should find at least some edges near the discontinuity
-        assert!(!edges.is_empty(), "should detect concept edges at the discontinuity");
+        assert!(
+            !edges.is_empty(),
+            "should detect concept edges at the discontinuity"
+        );
     }
 
     #[test]

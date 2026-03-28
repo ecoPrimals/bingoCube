@@ -52,11 +52,22 @@ fn main() {
     }
 
     // Separate phases
-    let quenched: Vec<&Record> = all.iter().filter(|r| r.phase == "quenched_pretherm").collect();
-    let therm: Vec<&Record> = all.iter().filter(|r| r.phase == "dynamical_therm").collect();
+    let quenched: Vec<&Record> = all
+        .iter()
+        .filter(|r| r.phase == "quenched_pretherm")
+        .collect();
+    let therm: Vec<&Record> = all
+        .iter()
+        .filter(|r| r.phase == "dynamical_therm")
+        .collect();
     let meas: Vec<&Record> = all.iter().filter(|r| r.phase == "measurement").collect();
 
-    println!("  Data loaded: {} quenched, {} therm, {} measurement", quenched.len(), therm.len(), meas.len());
+    println!(
+        "  Data loaded: {} quenched, {} therm, {} measurement",
+        quenched.len(),
+        therm.len(),
+        meas.len()
+    );
 
     // ─── Aggregate per-beta ───
 
@@ -64,9 +75,24 @@ fn main() {
     let mut meas_by_beta: BTreeMap<String, Vec<&Record>> = BTreeMap::new();
     let mut therm_by_beta: BTreeMap<String, Vec<&Record>> = BTreeMap::new();
 
-    for r in &quenched { quenched_by_beta.entry(format!("{:.4}", r.beta)).or_default().push(r); }
-    for r in &meas { meas_by_beta.entry(format!("{:.4}", r.beta)).or_default().push(r); }
-    for r in &therm { therm_by_beta.entry(format!("{:.4}", r.beta)).or_default().push(r); }
+    for r in &quenched {
+        quenched_by_beta
+            .entry(format!("{:.4}", r.beta))
+            .or_default()
+            .push(r);
+    }
+    for r in &meas {
+        meas_by_beta
+            .entry(format!("{:.4}", r.beta))
+            .or_default()
+            .push(r);
+    }
+    for r in &therm {
+        therm_by_beta
+            .entry(format!("{:.4}", r.beta))
+            .or_default()
+            .push(r);
+    }
 
     // Build paired data: quenched features → dynamical targets
     let mut inputs = Vec::new();
@@ -82,7 +108,11 @@ fn main() {
             // Quenched features (cheap to compute)
             let q_n = q_recs.len() as f64;
             let q_plaq = q_recs.iter().map(|r| r.plaquette).sum::<f64>() / q_n;
-            let q_plaq_var = q_recs.iter().map(|r| (r.plaquette - q_plaq).powi(2)).sum::<f64>() / q_n;
+            let q_plaq_var = q_recs
+                .iter()
+                .map(|r| (r.plaquette - q_plaq).powi(2))
+                .sum::<f64>()
+                / q_n;
 
             // Dynamical targets (expensive to compute)
             let m_n = m_recs.len() as f64;
@@ -105,14 +135,14 @@ fn main() {
                 beta / 7.0,
                 q_plaq,
                 q_plaq_var.sqrt().min(0.1) * 10.0, // normalized std
-                (t_cg + 1.0).ln() / 12.0,           // log therm CG
+                (t_cg + 1.0).ln() / 12.0,          // log therm CG
                 t_plaq,
             ]));
 
             targets.push(vec![
-                m_cg / max_cg,   // dynamical CG cost (normalized)
-                m_plaq,          // dynamical plaquette
-                m_acc,           // dynamical acceptance rate
+                m_cg / max_cg, // dynamical CG cost (normalized)
+                m_plaq,        // dynamical plaquette
+                m_acc,         // dynamical acceptance rate
             ]);
 
             beta_labels.push((key.clone(), beta, m_cg, m_plaq, m_acc, q_plaq));
@@ -143,8 +173,14 @@ fn main() {
     let mut drift = DriftMonitor::default();
 
     println!("━━━ Phase 1: Full Training (quenched → dynamical) ━━━\n");
-    println!("  {:>4}  {:>10}  {:>10}  {:>10}  {:>8}", "Gen", "MSE", "Mean Fit", "Best Fit", "Ne·s");
-    println!("  {:─>4}  {:─>10}  {:─>10}  {:─>10}  {:─>8}", "", "", "", "", "");
+    println!(
+        "  {:>4}  {:>10}  {:>10}  {:>10}  {:>8}",
+        "Gen", "MSE", "Mean Fit", "Best Fit", "Ne·s"
+    );
+    println!(
+        "  {:─>4}  {:─>10}  {:─>10}  {:─>10}  {:─>8}",
+        "", "", "", "", ""
+    );
 
     for gen in 0..50 {
         let mse = shell.evolve_generation_seeded(&inputs, &targets, 1000 + gen);
@@ -156,15 +192,25 @@ fn main() {
         if gen % 5 == 0 || gen == 49 {
             println!(
                 "  {:>4}  {:>10.6}  {:>10.4}  {:>10.4}  {:>8.2}",
-                last.0, mse, last.1, last.2, drift.latest_ne_s()
+                last.0,
+                mse,
+                last.1,
+                last.2,
+                drift.latest_ne_s()
             );
         }
     }
 
     if drift.is_drifting() {
-        println!("\n  ⚠ Drift detected! Recommendation: {:?}", drift.recommendation());
+        println!(
+            "\n  ⚠ Drift detected! Recommendation: {:?}",
+            drift.recommendation()
+        );
     } else {
-        println!("\n  ✓ Selection dominant (Ne·s = {:.2})", drift.latest_ne_s());
+        println!(
+            "\n  ✓ Selection dominant (Ne·s = {:.2})",
+            drift.latest_ne_s()
+        );
     }
 
     // ─── Per-β predictions ───
@@ -209,25 +255,49 @@ fn main() {
 
         println!(
             "  {:>7}  {:>8.4}  {:>10.0}  {:>10.0}  {:>8.4}  {:>8.3}  {:>7.1}%  {:>8}{}",
-            key, q_plaq, m_cg, pred_cg, plaq_delta, acc_delta, cg_err * 100.0, regime, marker
+            key,
+            q_plaq,
+            m_cg,
+            pred_cg,
+            plaq_delta,
+            acc_delta,
+            cg_err * 100.0,
+            regime,
+            marker
         );
     }
 
     let n = beta_labels.len() as f64;
-    println!("\n  Mean CG relative error: {:.1}%", total_cg_err / n * 100.0);
+    println!(
+        "\n  Mean CG relative error: {:.1}%",
+        total_cg_err / n * 100.0
+    );
 
     // ─── LOO cross-validation ───
 
     println!("\n━━━ Phase 3: Leave-One-Out (quenched → dynamical) ━━━\n");
-    println!("  {:>7}  {:>10}  {:>10}  {:>8}", "β held", "CG actual", "CG pred", "Rel Err");
+    println!(
+        "  {:>7}  {:>10}  {:>10}  {:>8}",
+        "β held", "CG actual", "CG pred", "Rel Err"
+    );
     println!("  {:─>7}  {:─>10}  {:─>10}  {:─>8}", "", "", "", "");
 
     let mut loo_total = 0.0;
     let mut loo_edges = Vec::new();
 
     for hold_out in 0..inputs.len() {
-        let train_in: Vec<_> = inputs.iter().enumerate().filter(|(i, _)| *i != hold_out).map(|(_, x)| x.clone()).collect();
-        let train_tgt: Vec<_> = targets.iter().enumerate().filter(|(i, _)| *i != hold_out).map(|(_, t)| t.clone()).collect();
+        let train_in: Vec<_> = inputs
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| *i != hold_out)
+            .map(|(_, x)| x.clone())
+            .collect();
+        let train_tgt: Vec<_> = targets
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| *i != hold_out)
+            .map(|(_, t)| t.clone())
+            .collect();
 
         let loo_cfg = ShellConfig {
             population_size: 16,
@@ -242,7 +312,8 @@ fn main() {
             ..Default::default()
         };
 
-        let mut loo = NautilusShell::from_seed(loo_cfg, InstanceId::new("loo"), 42 + hold_out as u64);
+        let mut loo =
+            NautilusShell::from_seed(loo_cfg, InstanceId::new("loo"), 42 + hold_out as u64);
         for gen in 0..25 {
             loo.evolve_generation_seeded(&train_in, &train_tgt, 2000 + gen);
         }
@@ -260,21 +331,35 @@ fn main() {
         let marker = if rel_err > 0.15 { " !" } else { "" };
         println!(
             "  {:>7}  {:>10.0}  {:>10.0}  {:>7.1}%{}",
-            beta_labels[hold_out].0, actual_cg, pred_cg, rel_err * 100.0, marker
+            beta_labels[hold_out].0,
+            actual_cg,
+            pred_cg,
+            rel_err * 100.0,
+            marker
         );
     }
 
-    println!("\n  Mean LOO CG error (quenched→dynamical): {:.1}%", loo_total / n * 100.0);
+    println!(
+        "\n  Mean LOO CG error (quenched→dynamical): {:.1}%",
+        loo_total / n * 100.0
+    );
 
     // ─── Concept edge detection ───
 
     if !loo_edges.is_empty() {
         println!("\n━━━ Concept Edges Detected ━━━\n");
         for (beta, err) in &loo_edges {
-            println!("  β = {}: LOO error {:.1}% — physics changes qualitatively here", beta, err * 100.0);
+            println!(
+                "  β = {}: LOO error {:.1}% — physics changes qualitatively here",
+                beta,
+                err * 100.0
+            );
         }
 
-        println!("\n  Seeding {} edge-targeted boards for next generation...", loo_edges.len() * 4);
+        println!(
+            "\n  Seeding {} edge-targeted boards for next generation...",
+            loo_edges.len() * 4
+        );
         let mut rng = rand::thread_rng();
         let config = bingocube_nautilus::Config::default();
 
@@ -298,11 +383,21 @@ fn main() {
     let quenched_total = n_betas * quenched_cost_per_beta;
     let dynamical_total = n_betas * dynamical_cost_per_beta;
 
-    println!("  Quenched scan (21 β × ~10s):   {:.0} seconds", quenched_total);
-    println!("  Dynamical scan (21 β × ~90m):  {:.0} seconds ({:.1} hours)", dynamical_total, dynamical_total / 3600.0);
+    println!(
+        "  Quenched scan (21 β × ~10s):   {:.0} seconds",
+        quenched_total
+    );
+    println!(
+        "  Dynamical scan (21 β × ~90m):  {:.0} seconds ({:.1} hours)",
+        dynamical_total,
+        dynamical_total / 3600.0
+    );
     println!("  Ratio: {:.0}× cheaper", dynamical_total / quenched_total);
     println!();
-    println!("  With {:.1}% LOO error, the quenched-trained shell can:", loo_total / n * 100.0);
+    println!(
+        "  With {:.1}% LOO error, the quenched-trained shell can:",
+        loo_total / n * 100.0
+    );
     println!("    • Pre-screen β points before committing dynamical budget");
     println!("    • Estimate CG cost to plan wall-time allocation");
     println!("    • Identify concept edges for priority measurement");
@@ -311,5 +406,9 @@ fn main() {
 
     let saved_betas = (loo_total / n * 100.0 < 10.0) as usize * 5; // conservatively skip 5 β if error < 10%
     let saved_time = saved_betas as f64 * dynamical_cost_per_beta;
-    println!("  Potential savings: skip ~{} low-information β points → save ~{:.1} hours", saved_betas, saved_time / 3600.0);
+    println!(
+        "  Potential savings: skip ~{} low-information β points → save ~{:.1} hours",
+        saved_betas,
+        saved_time / 3600.0
+    );
 }

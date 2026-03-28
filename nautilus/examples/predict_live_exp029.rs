@@ -114,8 +114,7 @@ fn main() {
     println!("║  Train: Exp 024+028 (historical)  Test: Exp 029 (live)        ║");
     println!("╚══════════════════════════════════════════════════════════════════╝\n");
 
-    let data_dir = std::env::var("DATA_DIR")
-        .unwrap_or_else(|_| "results".to_string());
+    let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "results".to_string());
 
     // ─── Load training data (historical) ───
     println!("━━━ Training Data (Exp 024 + 028) ━━━\n");
@@ -145,9 +144,8 @@ fn main() {
 
     // ─── Load test data (live Exp 029) ───
     println!("━━━ Test Data (Exp 029 — Live Production) ━━━\n");
-    let test_summaries = load_and_aggregate(&[
-        format!("{}/exp029_npu_steering_8x8.jsonl", data_dir),
-    ]);
+    let test_summaries =
+        load_and_aggregate(&[format!("{}/exp029_npu_steering_8x8.jsonl", data_dir)]);
 
     if test_summaries.is_empty() {
         eprintln!("\nNo Exp 029 data yet. Is the run active?");
@@ -176,15 +174,15 @@ fn main() {
     let instance = InstanceId::new("hotspring-biomeGate");
     let mut shell = NautilusShell::from_seed(config, instance, 42);
 
-    println!("━━━ Evolution: 40 generations on {} training points ━━━\n", train_inputs.len());
+    println!(
+        "━━━ Evolution: 40 generations on {} training points ━━━\n",
+        train_inputs.len()
+    );
     println!(
         "  {:>4}  {:>10}  {:>10}  {:>10}",
         "Gen", "MSE", "Mean Fit", "Best Fit"
     );
-    println!(
-        "  {:─>4}  {:─>10}  {:─>10}  {:─>10}",
-        "", "", "", ""
-    );
+    println!("  {:─>4}  {:─>10}  {:─>10}  {:─>10}", "", "", "", "");
 
     for gen in 0..40 {
         let mse = shell.evolve_generation_seeded(&train_inputs, &train_targets, 1000 + gen);
@@ -217,7 +215,11 @@ fn main() {
         train_err_total += rel_err;
         println!(
             "  {:>7.4}  {:>8}  {:>10.0}  {:>10.0}  {:>7.1}%",
-            s.beta, s.n_trajs, s.mean_cg, pred_cg, rel_err * 100.0
+            s.beta,
+            s.n_trajs,
+            s.mean_cg,
+            pred_cg,
+            rel_err * 100.0
         );
     }
     println!(
@@ -261,8 +263,14 @@ fn main() {
         let marker = if cg_err > 0.15 { " !" } else { "" };
         println!(
             "  {:>7.4}  {:>8}  {:>10.0}  {:>10.0}  {:>7.1}%  {:>10.4}  {:>10.4}{}",
-            s.beta, s.n_trajs, s.mean_cg, pred_cg,
-            cg_err * 100.0, s.mean_plaq, pred_plaq, marker
+            s.beta,
+            s.n_trajs,
+            s.mean_cg,
+            pred_cg,
+            cg_err * 100.0,
+            s.mean_plaq,
+            pred_plaq,
+            marker
         );
     }
 

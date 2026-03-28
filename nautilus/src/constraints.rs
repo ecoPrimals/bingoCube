@@ -7,7 +7,7 @@
 //! Each constraint reduces effective K (epistatic interactions between cells),
 //! making the landscape less rugged and easier for evolution to navigate.
 
-use bingocube_core::{Board, Config, BingoCubeError};
+use bingocube_core::{BingoCubeError, Board, Config};
 use rand::seq::SliceRandom;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -54,7 +54,13 @@ impl DriftMonitor {
     ///
     /// N_e = effective population size (we approximate as pop_size)
     /// s = selection coefficient ≈ (best_fitness - mean_fitness) / mean_fitness
-    pub fn record(&mut self, generation: usize, pop_size: usize, mean_fitness: f64, best_fitness: f64) {
+    pub fn record(
+        &mut self,
+        generation: usize,
+        pop_size: usize,
+        mean_fitness: f64,
+        best_fitness: f64,
+    ) {
         let s = if mean_fitness > 1e-10 {
             (best_fitness - mean_fitness) / mean_fitness
         } else {
@@ -271,7 +277,10 @@ mod tests {
             monitor.record(gen, 24, 0.5, 0.502);
         }
         assert!(monitor.is_drifting());
-        assert_eq!(monitor.recommendation(), DriftAction::IncreasePop { factor: 2.0 });
+        assert_eq!(
+            monitor.recommendation(),
+            DriftAction::IncreasePop { factor: 2.0 }
+        );
     }
 
     #[test]
@@ -284,7 +293,11 @@ mod tests {
 
         assert_eq!(boards.len(), 8);
         for board in &boards {
-            assert!(board_satisfies(board, &config, ConstraintLevel::ColumnRange));
+            assert!(board_satisfies(
+                board,
+                &config,
+                ConstraintLevel::ColumnRange
+            ));
         }
     }
 
@@ -294,6 +307,10 @@ mod tests {
         let mut rng = ChaCha20Rng::seed_from_u64(42);
         let board = Board::generate(&config, &mut rng).unwrap();
 
-        assert!(board_satisfies(&board, &config, ConstraintLevel::ColumnRange));
+        assert!(board_satisfies(
+            &board,
+            &config,
+            ConstraintLevel::ColumnRange
+        ));
     }
 }

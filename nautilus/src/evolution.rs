@@ -11,7 +11,7 @@
 //! exploring the combinatorial space of ~10^31 possible boards (for L=5).
 //! Children inherit high-performing parents' structure but are never clones.
 
-use bingocube_core::{Board, Config, BingoCubeError};
+use bingocube_core::{BingoCubeError, Board, Config};
 use rand::seq::SliceRandom;
 use rand::Rng;
 use serde::{Deserialize, Serialize};

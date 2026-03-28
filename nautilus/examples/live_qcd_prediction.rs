@@ -110,16 +110,16 @@ fn main() {
         let mean_cg = recs.iter().map(|r| r.cg_iters as f64).sum::<f64>() / n;
 
         inputs.push(ReservoirInput::Continuous(vec![
-            beta / 7.0,                   // normalized β
-            mean_plaq,                     // already [0, 1]
-            acc_rate,                      // already [0, 1]
-            mean_abs_dh.min(1.0),          // clamp
-            (mean_cg + 1.0).ln() / 12.0,  // log-normalized CG
+            beta / 7.0,                  // normalized β
+            mean_plaq,                   // already [0, 1]
+            acc_rate,                    // already [0, 1]
+            mean_abs_dh.min(1.0),        // clamp
+            (mean_cg + 1.0).ln() / 12.0, // log-normalized CG
         ]));
 
         targets.push(vec![
-            mean_cg / max_cg,  // normalized CG cost
-            mean_plaq,         // plaquette (self-prediction as sanity check)
+            mean_cg / max_cg, // normalized CG cost
+            mean_plaq,        // plaquette (self-prediction as sanity check)
         ]);
 
         beta_labels.push((beta_key.clone(), beta, mean_cg, mean_plaq, acc_rate));
@@ -145,8 +145,14 @@ fn main() {
     let mut shell = NautilusShell::from_seed(config, instance, 42);
 
     println!("  Nautilus Shell initialized:");
-    println!("    Population: {} boards (5×5)", shell.current_population.size());
-    println!("    Response dim: {}", shell.current_population.response_dim());
+    println!(
+        "    Population: {} boards (5×5)",
+        shell.current_population.size()
+    );
+    println!(
+        "    Response dim: {}",
+        shell.current_population.response_dim()
+    );
     println!("    Targets: CG cost (normalized), plaquette");
     println!();
 
@@ -154,15 +160,16 @@ fn main() {
 
     let n_generations = 40;
 
-    println!("━━━ Evolution: {} generations on {} β-point summaries ━━━\n", n_generations, inputs.len());
+    println!(
+        "━━━ Evolution: {} generations on {} β-point summaries ━━━\n",
+        n_generations,
+        inputs.len()
+    );
     println!(
         "  {:>4}  {:>10}  {:>10}  {:>10}",
         "Gen", "MSE", "Mean Fit", "Best Fit"
     );
-    println!(
-        "  {:─>4}  {:─>10}  {:─>10}  {:─>10}",
-        "", "", "", ""
-    );
+    println!("  {:─>4}  {:─>10}  {:─>10}  {:─>10}", "", "", "", "");
 
     for gen in 0..n_generations {
         let mse = shell.evolve_generation_seeded(&inputs, &targets, 1000 + gen);
@@ -178,7 +185,10 @@ fn main() {
 
     // ─── Per-β predictions ───
 
-    println!("\n━━━ Per-β Predictions (after {} generations) ━━━\n", n_generations);
+    println!(
+        "\n━━━ Per-β Predictions (after {} generations) ━━━\n",
+        n_generations
+    );
     println!(
         "  {:>7}  {:>10}  {:>10}  {:>8}  {:>10}  {:>10}",
         "β", "CG actual", "CG pred", "Acc%", "Plaq act", "Plaq pred"
@@ -205,13 +215,25 @@ fn main() {
 
         println!(
             "  {:>7}  {:>10.0}  {:>10.0}  {:>7.1}%  {:>10.4}  {:>10.4}{}",
-            beta_key, mean_cg, pred_cg, acc_rate * 100.0, mean_plaq, pred_plaq, marker
+            beta_key,
+            mean_cg,
+            pred_cg,
+            acc_rate * 100.0,
+            mean_plaq,
+            pred_plaq,
+            marker
         );
     }
 
     let n_betas = beta_labels.len() as f64;
-    println!("\n  Mean CG relative error: {:.1}%", total_cg_err / n_betas * 100.0);
-    println!("  Mean plaquette absolute error: {:.4}", total_plaq_err / n_betas);
+    println!(
+        "\n  Mean CG relative error: {:.1}%",
+        total_cg_err / n_betas * 100.0
+    );
+    println!(
+        "  Mean plaquette absolute error: {:.4}",
+        total_plaq_err / n_betas
+    );
 
     // ─── Leave-one-out cross-validation ───
 
@@ -220,10 +242,7 @@ fn main() {
         "  {:>7}  {:>10}  {:>10}  {:>8}",
         "β (held)", "CG actual", "CG pred", "Rel Err"
     );
-    println!(
-        "  {:─>7}  {:─>10}  {:─>10}  {:─>8}",
-        "", "", "", ""
-    );
+    println!("  {:─>7}  {:─>10}  {:─>10}  {:─>8}", "", "", "", "");
 
     let mut loo_total_err = 0.0;
     for hold_out in 0..inputs.len() {
@@ -255,7 +274,8 @@ fn main() {
         };
 
         let loo_instance = InstanceId::new("loo-validator");
-        let mut loo_shell = NautilusShell::from_seed(loo_config, loo_instance, 42 + hold_out as u64);
+        let mut loo_shell =
+            NautilusShell::from_seed(loo_config, loo_instance, 42 + hold_out as u64);
 
         for gen in 0..20 {
             loo_shell.evolve_generation_seeded(&train_inputs, &train_targets, 2000 + gen);
@@ -270,7 +290,11 @@ fn main() {
         let marker = if rel_err > 0.20 { " !" } else { "" };
         println!(
             "  {:>7}  {:>10.0}  {:>10.0}  {:>7.1}%{}",
-            beta_labels[hold_out].0, actual_cg, pred_cg, rel_err * 100.0, marker
+            beta_labels[hold_out].0,
+            actual_cg,
+            pred_cg,
+            rel_err * 100.0,
+            marker
         );
     }
 
@@ -285,12 +309,24 @@ fn main() {
     println!("\n━━━ Shell Summary ━━━\n");
     println!("  Generations evolved: {}", shell.generation());
     println!("  Shell size: {:.1} KB", serialized.len() as f64 / 1024.0);
-    println!("  Lineage: {:?}", shell.lineage.iter().map(|l| l.name()).collect::<Vec<_>>());
+    println!(
+        "  Lineage: {:?}",
+        shell.lineage.iter().map(|l| l.name()).collect::<Vec<_>>()
+    );
     println!("  History layers: {}", shell.history.len());
     println!(
         "  Best fitness achieved: {:.4} (gen {})",
-        shell.history.iter().map(|r| r.best_fitness).fold(0.0_f64, f64::max),
-        shell.history.iter().max_by(|a, b| a.best_fitness.partial_cmp(&b.best_fitness).unwrap()).map(|r| r.generation).unwrap_or(0),
+        shell
+            .history
+            .iter()
+            .map(|r| r.best_fitness)
+            .fold(0.0_f64, f64::max),
+        shell
+            .history
+            .iter()
+            .max_by(|a, b| a.best_fitness.partial_cmp(&b.best_fitness).unwrap())
+            .map(|r| r.generation)
+            .unwrap_or(0),
     );
     println!("\n  This shell can be serialized and shipped to another instance");
     println!("  (e.g. a field AKD1000 NPU) to continue evolving on new data.\n");
