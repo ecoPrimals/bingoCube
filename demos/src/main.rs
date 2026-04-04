@@ -1,7 +1,7 @@
-//! BingoCube demo application entry point
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//! `BingoCube` demo application entry point
 
 use eframe::egui;
-use tracing_subscriber;
 
 mod interactive;
 

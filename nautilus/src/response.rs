@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Board response — how input data flows through a board as a reservoir projection.
 //!
 //! A bingo board is a structured random network. When input values stream through

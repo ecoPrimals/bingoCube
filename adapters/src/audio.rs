@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Audio adapter for BingoCube sonification.
 //!
 //! This adapter helps audio systems create soundscapes from BingoCube data.
@@ -89,7 +90,6 @@ impl BingoCubeAudioRenderer {
         match color % 5 {
             0 => Instrument::Bells,
             1 => Instrument::Strings,
-            2 => Instrument::Piano,
             3 => Instrument::Percussion,
             4 => Instrument::Bass,
             _ => Instrument::Piano,
@@ -145,9 +145,8 @@ impl BingoCubeAudioRenderer {
             return HashMap::new();
         }
 
-        let subcube = match self.bingocube.subcube(x) {
-            Ok(sc) => sc,
-            Err(_) => return HashMap::new(),
+        let Ok(subcube) = self.bingocube.subcube(x) else {
+            return HashMap::new();
         };
 
         let mut soundscape = HashMap::new();

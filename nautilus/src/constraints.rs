@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Constraint variants for board generation and evolution.
 //!
 //! Column-range constraints are the baseline "type system" for boards.
@@ -266,15 +267,15 @@ mod tests {
         let mut monitor = DriftMonitor::default();
 
         // Strong selection
-        for gen in 0..5 {
-            monitor.record(gen, 24, 0.5, 0.8);
+        for gen_idx in 0..5 {
+            monitor.record(gen_idx, 24, 0.5, 0.8);
         }
         assert!(!monitor.is_drifting());
         assert!(monitor.latest_ne_s() > 1.0);
 
         // Weak selection (best ≈ mean)
-        for gen in 5..15 {
-            monitor.record(gen, 24, 0.5, 0.502);
+        for gen_idx in 5..15 {
+            monitor.record(gen_idx, 24, 0.5, 0.502);
         }
         assert!(monitor.is_drifting());
         assert_eq!(

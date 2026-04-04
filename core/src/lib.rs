@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! # bingocube-core
 //!
-//! Core implementation of BingoCube: a multi-dimensional visual verification system
+//! Core implementation of `BingoCube`: a multi-dimensional visual verification system
 //! that combines structured combinatorics with cryptographic hashing.
 //!
 //! ## Overview
 //!
-//! BingoCube creates verifiable, multi-resolution visual artifacts by:
+//! `BingoCube` creates verifiable, multi-resolution visual artifacts by:
 //! 1. Generating two "bingo-style" boards (A and B) with column range constraints
 //! 2. Cross-binding them via cryptographic hashing
 //! 3. Producing a color grid that commits to both boards
@@ -31,8 +32,6 @@
 //! ```
 
 #![warn(missing_docs)]
-#![warn(clippy::all)]
-#![warn(clippy::pedantic)]
 
 use rand::seq::SliceRandom;
 use rand::{Rng, SeedableRng};
@@ -41,7 +40,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use thiserror::Error;
 
-/// Errors that can occur during BingoCube operations
+/// Errors that can occur during `BingoCube` operations
 #[derive(Debug, Error)]
 pub enum BingoCubeError {
     /// Invalid grid size (must be > 0)
@@ -61,7 +60,7 @@ pub enum BingoCubeError {
     InvalidRevealParameter(f64),
 }
 
-/// Configuration for BingoCube generation
+/// Configuration for `BingoCube` generation
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     /// Grid dimension (L×L)
@@ -97,7 +96,7 @@ impl Config {
 
     /// Create a medium configuration
     #[must_use]
-    pub fn medium() -> Self {
+    pub const fn medium() -> Self {
         Self {
             grid_size: 8,
             universe_size: 512,
@@ -108,7 +107,7 @@ impl Config {
 
     /// Create a large configuration
     #[must_use]
-    pub fn large() -> Self {
+    pub const fn large() -> Self {
         Self {
             grid_size: 12,
             universe_size: 1000,
@@ -122,12 +121,12 @@ impl Config {
     /// # Errors
     ///
     /// Returns error if configuration is invalid
-    pub fn validate(&self) -> Result<(), BingoCubeError> {
+    pub const fn validate(&self) -> Result<(), BingoCubeError> {
         if self.grid_size == 0 {
             return Err(BingoCubeError::InvalidGridSize(self.grid_size));
         }
 
-        if self.universe_size % self.grid_size != 0 {
+        if !self.universe_size.is_multiple_of(self.grid_size) {
             return Err(BingoCubeError::InvalidUniverseSize(
                 self.universe_size,
                 self.grid_size,
@@ -143,7 +142,7 @@ impl Config {
 
     /// Get per-column range size
     #[must_use]
-    pub fn range_size(&self) -> usize {
+    pub const fn range_size(&self) -> usize {
         self.universe_size / self.grid_size
     }
 }
@@ -186,21 +185,25 @@ impl Board {
             let range_end = range_start + range_size;
 
             // Generate distinct values for this column
+            #[expect(
+                clippy::cast_possible_truncation,
+                reason = "column ranges are bounded by validated universe and grid size"
+            )]
             let mut values: Vec<u32> = (range_start..range_end).map(|v| v as u32).collect();
             values.shuffle(rng);
 
             // Fill column (skip free cell if present)
             let mut value_idx = 0;
-            for row in 0..size {
-                if let Some((free_row, free_col)) = config.free_cell {
-                    if row == free_row && col == free_col {
-                        grid[row][col] = None; // Free cell
-                        continue;
-                    }
+            for (row, row_cells) in grid.iter_mut().enumerate().take(size) {
+                if let Some((free_row, free_col)) = config.free_cell
+                    && row == free_row && col == free_col
+                {
+                    row_cells[col] = None; // Free cell
+                    continue;
                 }
 
                 if value_idx < values.len() {
-                    grid[row][col] = Some(values[value_idx]);
+                    row_cells[col] = Some(values[value_idx]);
                     value_idx += 1;
                 }
             }
@@ -233,7 +236,7 @@ pub type Position = (usize, usize);
 /// A scalar field value (hash output)
 type Scalar = u64;
 
-/// The main BingoCube structure
+/// The main `BingoCube` structure
 #[derive(Debug, Clone)]
 pub struct BingoCube {
     /// Board A (depth layer 0)
@@ -290,17 +293,22 @@ impl BingoCube {
 
         // Compute scalar field
         let mut scalar_field = vec![vec![0u64; size]; size];
-        for i in 0..size {
-            for j in 0..size {
-                scalar_field[i][j] = Self::compute_scalar(i, j, &board_a, &board_b);
+        for (i, row) in scalar_field.iter_mut().enumerate().take(size) {
+            for (j, cell) in row.iter_mut().enumerate().take(size) {
+                *cell = Self::compute_scalar(i, j, &board_a, &board_b);
             }
         }
 
         // Compute color grid
         let mut color_grid = vec![vec![0u8; size]; size];
-        for i in 0..size {
-            for j in 0..size {
-                color_grid[i][j] = (scalar_field[i][j] % config.palette_size as u64) as u8;
+        for (i, row) in color_grid.iter_mut().enumerate().take(size) {
+            for (j, cell) in row.iter_mut().enumerate().take(size) {
+                #[expect(
+                    clippy::cast_possible_truncation,
+                    reason = "palette index is reduced modulo palette_size"
+                )]
+                let c = (scalar_field[i][j] % config.palette_size as u64) as u8;
+                *cell = c;
             }
         }
 
@@ -343,7 +351,7 @@ impl BingoCube {
 
     /// Get the full color grid
     #[must_use]
-    pub fn color_grid(&self) -> &Vec<Vec<Color>> {
+    pub const fn color_grid(&self) -> &Vec<Vec<Color>> {
         &self.color_grid
     }
 
@@ -371,13 +379,25 @@ impl BingoCube {
 
         let size = self.config.grid_size;
         let total_cells = size * size;
+        #[expect(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            clippy::cast_precision_loss,
+            reason = "grid dimensions are small, x is in (0,1], product is always non-negative and fits in usize"
+        )]
         let reveal_count = (x * total_cells as f64).ceil() as usize;
 
         // Collect all cells with their scalar values
         let mut cells: Vec<(Position, Scalar, Color)> = Vec::new();
-        for i in 0..size {
-            for j in 0..size {
-                cells.push(((i, j), self.scalar_field[i][j], self.color_grid[i][j]));
+        for (i, (sf_row, cg_row)) in self
+            .scalar_field
+            .iter()
+            .zip(&self.color_grid)
+            .enumerate()
+            .take(size)
+        {
+            for (j, (&s, &c)) in sf_row.iter().zip(cg_row).enumerate().take(size) {
+                cells.push(((i, j), s, c));
             }
         }
 
@@ -397,14 +417,11 @@ impl BingoCube {
     /// Verify a subcube
     #[must_use]
     pub fn verify_subcube(&self, subcube: &SubCube, x: f64) -> bool {
-        match self.subcube(x) {
-            Ok(expected) => expected == *subcube,
-            Err(_) => false,
-        }
+        self.subcube(x).is_ok_and(|expected| expected == *subcube)
     }
 }
 
-/// A partial reveal of a `BingoCube` at level x
+/// A partial reveal of a [`BingoCube`] at level x
 #[derive(Debug, Clone, PartialEq)]
 pub struct SubCube {
     /// Grid size
@@ -484,8 +501,18 @@ mod tests {
                 }
 
                 if let Some(val) = board.get(row, col) {
-                    assert!(val >= range_start as u32);
-                    assert!(val < range_end as u32);
+                    #[expect(
+                        clippy::cast_possible_truncation,
+                        reason = "test grid column ranges fit in u32"
+                    )]
+                    let rs = range_start as u32;
+                    #[expect(
+                        clippy::cast_possible_truncation,
+                        reason = "test grid column ranges fit in u32"
+                    )]
+                    let re = range_end as u32;
+                    assert!(val >= rs);
+                    assert!(val < re);
                 }
             }
         }
@@ -516,12 +543,12 @@ mod tests {
         assert_eq!(sub_100.revealed_count(), 25); // 100% of 25
 
         // Test nesting property: sub_20 ⊂ sub_50 ⊂ sub_100
-        for (pos, _) in &sub_20.revealed {
+        for pos in sub_20.revealed.keys() {
             assert!(sub_50.revealed.contains_key(pos));
             assert!(sub_100.revealed.contains_key(pos));
         }
 
-        for (pos, _) in &sub_50.revealed {
+        for pos in sub_50.revealed.keys() {
             assert!(sub_100.revealed.contains_key(pos));
         }
     }

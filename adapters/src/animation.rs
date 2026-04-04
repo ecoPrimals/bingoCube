@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Animation adapter for BingoCube.
 //!
 //! This adapter helps animation systems create smooth transitions for BingoCube reveals.
@@ -10,7 +11,8 @@ use std::time::Duration;
 /// Animation controller for BingoCube
 #[derive(Debug)]
 pub struct BingoCubeAnimationController {
-    /// The BingoCube to animate
+    /// Reserved for future render integration (pulse/particle wiring).
+    #[expect(dead_code, reason = "reserved for future animation integration")]
     bingocube: BingoCube,
     /// The animation engine
     animation_engine: AnimationEngine,
@@ -22,7 +24,8 @@ pub struct BingoCubeAnimationController {
     animation_speed: f32,
     /// Whether to animate progressive reveal
     animate_reveal: bool,
-    /// Particle speed multiplier
+    /// Particle speed multiplier (reserved).
+    #[expect(dead_code, reason = "reserved for future particle tuning")]
     particle_speed: f32,
     /// Whether particles are enabled
     particles_enabled: bool,
@@ -119,13 +122,13 @@ impl BingoCubeAnimationController {
     }
 
     /// Spawns particles for cells revealed between old_x and new_x
-    fn spawn_reveal_particles(&mut self, _old_x: f64, _new_x: f64) {
+    fn spawn_reveal_particles(&self, _old_x: f64, _new_x: f64) {
         // Simplified: pulse animation only for now
         // Future: could add edge animations for reveal progression
     }
 
     /// Pulses all currently revealed cells
-    fn pulse_revealed_cells(&mut self) {
+    fn pulse_revealed_cells(&self) {
         // Simplified: just mark that animation should occur
         // The existing animation engine handles the actual pulse effects
     }
@@ -188,8 +191,6 @@ pub struct CellAnimation {
 mod tests {
     use super::*;
     use bingocube_core::Config;
-    use std::thread::sleep;
-
     #[test]
     fn test_controller_creation() {
         let config = Config::default();
@@ -253,7 +254,7 @@ mod tests {
         
         controller.set_particles_enabled(false);
         assert!(!controller.particles_enabled);
-        assert!(controller.animation_engine.flow_particles.is_empty());
+        assert!(controller.animation_engine.edge_animations.is_empty());
         
         controller.set_particles_enabled(true);
         assert!(controller.particles_enabled);

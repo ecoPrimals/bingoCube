@@ -1,11 +1,12 @@
-//! BingoCube interactive demonstration
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//! `BingoCube` interactive demonstration
 
 use bingocube_adapters::visual::BingoCubeVisualRenderer;
 use bingocube_core::{BingoCube, Config};
 
-/// BingoCube demo application
+/// `BingoCube` demo application
 pub struct BingoCubeDemo {
-    /// Current BingoCube
+    /// Current `BingoCube`
     cube: BingoCube,
 
     /// Visual renderer
@@ -56,6 +57,10 @@ impl BingoCubeDemo {
 }
 
 impl eframe::App for BingoCubeDemo {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "single egui `update` callback is intentionally monolithic for the demo UI"
+    )]
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Set dark theme
         let mut style = (*ctx.style()).clone();
@@ -142,6 +147,11 @@ impl eframe::App for BingoCubeDemo {
                         .show_value(true),
                 );
 
+                #[expect(
+                    clippy::cast_possible_truncation,
+                    clippy::cast_sign_loss,
+                    reason = "demo uses fixed 5×5 grid; product fits in usize and is non-negative"
+                )]
                 let revealed_count = (self.renderer.reveal_x * 25.0).ceil() as usize;
                 ui.label(format!(
                     "Revealed: {}/25 cells ({:.0}%)",
@@ -193,8 +203,8 @@ impl eframe::App for BingoCubeDemo {
                 ));
                 ui.label(format!("Universe: 0-{}", self.config.universe_size - 1));
                 ui.label(format!("Palette: {} colors", self.config.palette_size));
-                ui.label(format!("Entropy: ~385 bits"));
-                ui.label(format!("Forgery (x=0.5): ~2^(-50)"));
+                ui.label("Entropy: ~385 bits");
+                ui.label("Forgery (x=0.5): ~2^(-50)");
             });
 
         // Central panel - BingoCube visualization
@@ -243,10 +253,14 @@ impl eframe::App for BingoCubeDemo {
 
 /// Render a board as a grid of numbers
 fn render_board(ui: &mut egui::Ui, board: &bingocube_core::Board) {
-    use egui::*;
+    use egui::{Align2, Color32, FontId, Rect, Sense, Vec2};
 
     let cell_size = 50.0;
     let size = board.size;
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "demo board size is small (fits exactly in f32)"
+    )]
     let grid_size = Vec2::splat(cell_size * size as f32);
 
     let (response, painter) = ui.allocate_painter(grid_size, Sense::hover());
@@ -254,6 +268,10 @@ fn render_board(ui: &mut egui::Ui, board: &bingocube_core::Board) {
 
     for i in 0..size {
         for j in 0..size {
+            #[expect(
+                clippy::cast_precision_loss,
+                reason = "demo board indices are small grid coordinates"
+            )]
             let cell_rect = Rect::from_min_size(
                 rect.min + Vec2::new(j as f32 * cell_size, i as f32 * cell_size),
                 Vec2::splat(cell_size),

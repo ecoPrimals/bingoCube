@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! # bingocube-nautilus
 //!
 //! Evolutionary reservoir computing built on BingoCube boards.
@@ -40,7 +41,6 @@
 //! The shell is the portable unit of learned structure.
 
 #![warn(missing_docs)]
-#![warn(clippy::all)]
 
 mod brain;
 mod constraints;
@@ -51,7 +51,7 @@ mod response;
 mod shell;
 
 pub use brain::{BetaObservation, NautilusBrain, NautilusBrainConfig};
-pub use constraints::{board_satisfies, ConstraintLevel, DriftAction, DriftMonitor, EdgeSeeder};
+pub use constraints::{ConstraintLevel, DriftAction, DriftMonitor, EdgeSeeder, board_satisfies};
 pub use evolution::{Evolution, EvolutionConfig, SelectionMethod};
 pub use population::{FitnessRecord, Population};
 pub use readout::LinearReadout;

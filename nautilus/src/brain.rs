@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Brain integration — Nautilus Shell as a subsystem in the NPU brain architecture.
 //!
 //! The Nautilus Shell runs alongside the ESN in the brain, handling:
@@ -152,8 +153,8 @@ impl NautilusBrain {
         let (inputs, targets) = self.build_training_data();
         let mut last_mse = 0.0;
 
-        for gen in 0..self.config.generations_per_cycle {
-            let seed = self.shell.generation() as u64 * 1000 + gen;
+        for generation in 0..self.config.generations_per_cycle {
+            let seed = self.shell.generation() as u64 * 1000 + generation;
             last_mse = self.shell.evolve_generation_seeded(&inputs, &targets, seed);
 
             let traj = self.shell.fitness_trajectory();
@@ -258,8 +259,8 @@ impl NautilusBrain {
             let loo_id = InstanceId::new("loo-edge-detect");
             let mut loo = NautilusShell::from_seed(loo_cfg, loo_id, 42 + hold_out as u64);
 
-            for gen in 0..15 {
-                loo.evolve_generation_seeded(&train_in, &train_tgt, 3000 + gen);
+            for generation in 0..15 {
+                loo.evolve_generation_seeded(&train_in, &train_tgt, 3000 + generation);
             }
 
             let pred = loo.predict(&inputs[hold_out]);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! # bingocube-adapters
 //!
 //! Visualization adapters for BingoCube. These are OPTIONAL helpers that allow
@@ -28,8 +29,6 @@
 //! ```
 
 #![warn(missing_docs)]
-#![warn(clippy::all)]
-#![warn(clippy::pedantic)]
 
 #[cfg(feature = "visual")]
 pub mod visual;
@@ -37,8 +36,8 @@ pub mod visual;
 #[cfg(feature = "audio")]
 pub mod audio;
 
-// #[cfg(feature = "animation")]
-// pub mod animation;
+#[cfg(feature = "animation")]
+pub mod animation;
 
 // Re-export core for convenience
 pub use bingocube_core;

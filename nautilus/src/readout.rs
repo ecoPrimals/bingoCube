@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Linear readout — the FC (fully connected) layer that extracts predictions
 //! from the ensemble reservoir response.
 //!

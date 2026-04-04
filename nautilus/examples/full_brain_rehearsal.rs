@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Full Brain Rehearsal — save state, simulate, validate, reset.
 //!
 //! Exercises every new Nautilus feature in a production-like cycle:
@@ -73,18 +74,18 @@ fn main() {
     println!("  Training data: {} beta points (β=4.0..7.0)", inputs.len());
     println!("  Targets: plaquette + CG cost\n");
 
-    for gen in 0..15 {
-        let mse = shell.evolve_generation_seeded(&inputs, &targets, 1000 + gen);
+    for gen_idx in 0..15 {
+        let mse = shell.evolve_generation_seeded(&inputs, &targets, 1000 + gen_idx);
         let ne_s = shell.latest_ne_s();
         let drifting = if shell.is_drifting() {
             " ⚠ DRIFT"
         } else {
             ""
         };
-        if gen % 3 == 0 || shell.is_drifting() {
+        if gen_idx % 3 == 0 || shell.is_drifting() {
             println!(
                 "  Gen {:>2}: MSE={:.6}  N_e·s={:.2}  pop={}{}",
-                gen,
+                gen_idx,
                 mse,
                 ne_s,
                 shell.current_population.size(),
@@ -142,12 +143,12 @@ fn main() {
         );
     }
 
-    for gen in 0..10 {
-        let mse = shell.evolve_generation_seeded(&inputs, &targets, 2000 + gen);
-        if gen % 3 == 0 {
+    for gen_idx in 0..10 {
+        let mse = shell.evolve_generation_seeded(&inputs, &targets, 2000 + gen_idx);
+        if gen_idx % 3 == 0 {
             println!(
                 "  Edge-seeded Gen {:>2}: MSE={:.6}  N_e·s={:.2}",
-                gen,
+                gen_idx,
                 mse,
                 shell.latest_ne_s()
             );
@@ -322,8 +323,8 @@ fn main() {
 
     // Field node evolves on slightly different data (different seed range)
     let (field_inputs, field_targets) = qcd_phase_data(25);
-    for gen in 0..5 {
-        field_shell.evolve_generation_seeded(&field_inputs, &field_targets, 3000 + gen);
+    for gen_idx in 0..5 {
+        field_shell.evolve_generation_seeded(&field_inputs, &field_targets, 3000 + gen_idx);
     }
     println!("  Field node evolved {} more generations", 5);
 
@@ -337,8 +338,8 @@ fn main() {
     );
 
     // Evolve merged shell
-    for gen in 0..3 {
-        merged.evolve_generation_seeded(&inputs, &targets, 4000 + gen);
+    for gen_idx in 0..3 {
+        merged.evolve_generation_seeded(&inputs, &targets, 4000 + gen_idx);
     }
     let merged_mse = {
         let r: Vec<ResponseVector> = inputs

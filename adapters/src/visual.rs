@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Visual adapter for BingoCube rendering.
 //!
 //! This adapter helps visualization systems (like petalTongue) render

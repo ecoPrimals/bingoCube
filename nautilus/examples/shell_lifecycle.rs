@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Nautilus Shell Lifecycle Demo
 //!
 //! Demonstrates:
@@ -66,11 +67,11 @@ fn main() {
     );
     println!("  {:─>4}  {:─>10}  {:─>10}  {:─>10}", "", "", "", "");
 
-    for gen in 0..20 {
-        let mse = homelab_shell.evolve_generation_seeded(&inputs, &targets, 100 + gen);
+    for gen_idx in 0..20 {
+        let mse = homelab_shell.evolve_generation_seeded(&inputs, &targets, 100 + gen_idx);
         let traj = homelab_shell.fitness_trajectory();
         let last = traj.last().unwrap();
-        if gen % 2 == 0 || gen == 19 {
+        if gen_idx % 2 == 0 || gen_idx == 19 {
             println!(
                 "  {:>4}  {:>10.6}  {:>10.4}  {:>10.4}",
                 last.0, mse, last.1, last.2
@@ -141,11 +142,11 @@ fn main() {
     );
     println!("  {:─>4}  {:─>10}  {:─>10}  {:─>10}", "", "", "", "");
 
-    for gen in 0..10 {
-        let mse = field_shell.evolve_generation_seeded(&field_inputs, &field_targets, 300 + gen);
+    for gen_idx in 0..10 {
+        let mse = field_shell.evolve_generation_seeded(&field_inputs, &field_targets, 300 + gen_idx);
         let traj = field_shell.fitness_trajectory();
         let last = traj.last().unwrap();
-        if gen % 2 == 0 || gen == 9 {
+        if gen_idx % 2 == 0 || gen_idx == 9 {
             println!(
                 "  {:>4}  {:>10.6}  {:>10.4}  {:>10.4}",
                 last.0, mse, last.1, last.2
@@ -198,8 +199,8 @@ fn main() {
     );
     println!("  {:─>4}  {:─>10}  {:─>10}  {:─>10}", "", "", "", "");
 
-    for gen in 0..5 {
-        let mse = homelab_shell.evolve_generation_seeded(&inputs, &targets, 400 + gen);
+    for gen_idx in 0..5 {
+        let mse = homelab_shell.evolve_generation_seeded(&inputs, &targets, 400 + gen_idx);
         let traj = homelab_shell.fitness_trajectory();
         let last = traj.last().unwrap();
         println!(

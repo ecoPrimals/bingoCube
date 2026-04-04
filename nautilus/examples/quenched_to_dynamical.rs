@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Quenched → Dynamical Transfer Test
 //!
 //! Tests whether a Nautilus Shell trained on cheap quenched observables
@@ -182,14 +183,14 @@ fn main() {
         "", "", "", "", ""
     );
 
-    for gen in 0..50 {
-        let mse = shell.evolve_generation_seeded(&inputs, &targets, 1000 + gen);
+    for gen_idx in 0..50 {
+        let mse = shell.evolve_generation_seeded(&inputs, &targets, 1000 + gen_idx);
         let traj = shell.fitness_trajectory();
         let last = traj.last().unwrap();
 
-        drift.record(gen as usize, 24, last.1, last.2);
+        drift.record(gen_idx as usize, 24, last.1, last.2);
 
-        if gen % 5 == 0 || gen == 49 {
+        if gen_idx % 5 == 0 || gen_idx == 49 {
             println!(
                 "  {:>4}  {:>10.6}  {:>10.4}  {:>10.4}  {:>8.2}",
                 last.0,
@@ -314,8 +315,8 @@ fn main() {
 
         let mut loo =
             NautilusShell::from_seed(loo_cfg, InstanceId::new("loo"), 42 + hold_out as u64);
-        for gen in 0..25 {
-            loo.evolve_generation_seeded(&train_in, &train_tgt, 2000 + gen);
+        for gen_idx in 0..25 {
+            loo.evolve_generation_seeded(&train_in, &train_tgt, 2000 + gen_idx);
         }
 
         let pred = loo.predict(&inputs[hold_out]);

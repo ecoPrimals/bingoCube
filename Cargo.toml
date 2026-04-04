@@ -10,11 +10,20 @@ members = [
 
 [workspace.package]
 version = "0.1.0"
-edition = "2021"
-license = "AGPL-3.0"
+edition = "2024"
+license = "AGPL-3.0-or-later"
 repository = "https://github.com/ecoPrimals/bingoCube"
 authors = ["ecoPrimals Team"]
 description = "Human-verifiable cryptographic commitment system"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
 
 [workspace.dependencies]
 bingocube-core = { path = "core", version = "0.1.0" }
@@ -22,7 +31,7 @@ bingocube-adapters = { path = "adapters", version = "0.1.0" }
 bingocube-nautilus = { path = "nautilus", version = "0.1.0" }
 blake3 = "1.5"
 serde = { version = "1.0", features = ["derive"] }
-thiserror = "1.0"
+thiserror = "2.0"
 rand = "0.8"
 egui = "0.29"
 eframe = "0.29"

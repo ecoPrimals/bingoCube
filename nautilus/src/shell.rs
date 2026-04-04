@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! The Nautilus Shell — layered evolutionary history of board populations.
 //!
 //! ```text
@@ -728,8 +729,8 @@ mod tests {
         let (inputs, targets) = synthetic_dataset(50);
 
         let mut mse_history = Vec::new();
-        for gen in 0..10 {
-            let mse = shell.evolve_generation_seeded(&inputs, &targets, 100 + gen);
+        for gen_idx in 0..10 {
+            let mse = shell.evolve_generation_seeded(&inputs, &targets, 100 + gen_idx);
             mse_history.push(mse);
         }
 
@@ -754,8 +755,8 @@ mod tests {
         let mut shell_a = NautilusShell::from_seed(config.clone(), id_a, 42);
         let (inputs, targets) = synthetic_dataset(50);
 
-        for gen in 0..5 {
-            shell_a.evolve_generation_seeded(&inputs, &targets, 100 + gen);
+        for gen_idx in 0..5 {
+            shell_a.evolve_generation_seeded(&inputs, &targets, 100 + gen_idx);
         }
         assert_eq!(shell_a.generation(), 5);
 
@@ -763,13 +764,13 @@ mod tests {
         let id_b = InstanceId::new("strandgate");
         let mut shell_b = NautilusShell::continue_from(shell_a, id_b.clone());
 
-        assert_eq!(shell_b.generation(), 5); // continues from gen 5
+        assert_eq!(shell_b.generation(), 5); // continues from generation 5
         assert_eq!(shell_b.lineage_depth(), 2);
         assert_eq!(shell_b.origin.name(), "strandgate");
 
         // Instance B continues evolving
-        for gen in 0..5 {
-            shell_b.evolve_generation_seeded(&inputs, &targets, 200 + gen);
+        for gen_idx in 0..5 {
+            shell_b.evolve_generation_seeded(&inputs, &targets, 200 + gen_idx);
         }
         assert_eq!(shell_b.generation(), 10);
     }
@@ -789,9 +790,9 @@ mod tests {
             NautilusShell::from_seed(config.clone(), InstanceId::new("northgate"), 42);
         let mut shell_b = NautilusShell::from_seed(config, InstanceId::new("strandgate"), 99);
 
-        for gen in 0..5 {
-            shell_a.evolve_generation_seeded(&inputs, &targets, 100 + gen);
-            shell_b.evolve_generation_seeded(&inputs, &targets, 200 + gen);
+        for gen_idx in 0..5 {
+            shell_a.evolve_generation_seeded(&inputs, &targets, 100 + gen_idx);
+            shell_b.evolve_generation_seeded(&inputs, &targets, 200 + gen_idx);
         }
 
         // Merge B into A
@@ -843,8 +844,8 @@ mod tests {
         let mut shell = NautilusShell::from_seed(config, id, 42);
         let (inputs, targets) = synthetic_dataset(50);
 
-        for gen in 0..10 {
-            shell.evolve_generation_seeded(&inputs, &targets, 100 + gen);
+        for gen_idx in 0..10 {
+            shell.evolve_generation_seeded(&inputs, &targets, 100 + gen_idx);
         }
 
         // Drift monitor should have 10 entries
@@ -873,14 +874,14 @@ mod tests {
         let (inputs, targets) = synthetic_dataset(50);
 
         // Evolve a few generations without edges
-        for gen in 0..3 {
-            shell.evolve_generation_seeded(&inputs, &targets, 100 + gen);
+        for gen_idx in 0..3 {
+            shell.evolve_generation_seeded(&inputs, &targets, 100 + gen_idx);
         }
 
         // Set concept edges and evolve more
         shell.set_concept_edges(vec![vec![0.85, 0.3, 0.5]]);
-        for gen in 3..8 {
-            shell.evolve_generation_seeded(&inputs, &targets, 100 + gen);
+        for gen_idx in 3..8 {
+            shell.evolve_generation_seeded(&inputs, &targets, 100 + gen_idx);
         }
 
         assert_eq!(shell.generation(), 8);
@@ -900,8 +901,8 @@ mod tests {
         let (inputs, targets_1) = synthetic_dataset(30);
         let targets_2: Vec<Vec<f64>> = targets_1.iter().map(|t| vec![t[0], t[0] * 2.0]).collect();
 
-        for gen in 0..5 {
-            shell.evolve_generation_seeded(&inputs, &targets_2, 100 + gen);
+        for gen_idx in 0..5 {
+            shell.evolve_generation_seeded(&inputs, &targets_2, 100 + gen_idx);
         }
 
         let export = shell.export_akd1000_weights();
@@ -962,8 +963,8 @@ mod tests {
             })
             .collect();
 
-        for gen in 0..5 {
-            shell.evolve_generation_seeded(&inputs, &targets, 100 + gen);
+        for gen_idx in 0..5 {
+            shell.evolve_generation_seeded(&inputs, &targets, 100 + gen_idx);
         }
 
         let edges = shell.detect_concept_edges(&inputs, &targets, 2.0);

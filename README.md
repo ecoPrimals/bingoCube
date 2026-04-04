@@ -104,6 +104,18 @@ Interactive demonstrations (not a library).
 cargo run --example interactive
 ```
 
+### `bingocube-nautilus`
+
+Evolutionary reservoir computing via board populations — the nautilus shell.
+
+```toml
+[dependencies]
+bingocube-nautilus = "0.1"
+```
+
+Provides population-based evolution (selection, crossover, mutation), drift monitoring,
+brain prediction engine, and response surface readout. 31 tests, 5 examples.
+
 ---
 
 ## 🎨 Use Cases
@@ -270,26 +282,29 @@ cargo doc --open --no-deps
 
 ```
 bingoCube/
-├── core/                   # Pure crypto core
+├── core/                   # Pure crypto core (~600 lines, 15 tests)
+│   └── src/lib.rs
+├── adapters/              # Optional visualization (feature-gated)
+│   └── src/
+│       ├── visual.rs      # egui rendering
+│       ├── audio.rs       # Sonification
+│       └── animation.rs   # Progressive reveal
+├── nautilus/              # Evolutionary reservoir computing
 │   ├── src/
-│   │   └── lib.rs         # ~600 lines, 7 tests
-│   └── Cargo.toml
-├── adapters/              # Optional visualization
-│   ├── src/
-│   │   ├── visual.rs      # egui rendering
-│   │   ├── audio.rs       # Sonification
-│   │   └── animation.rs   # Progressive reveal
-│   └── Cargo.toml
-├── demos/                 # Interactive demos
-│   ├── src/
-│   │   └── interactive.rs
-│   └── Cargo.toml
-└── whitePaper/            # Comprehensive docs
-    ├── README.md          # Documentation index
-    ├── BingoCube-Overview.md
-    ├── BingoCube-Mathematical-Foundation.md
-    ├── BingoCube-Ecosystem-Examples.md
-    └── BingoCube-Biometric-Identity.md
+│   │   ├── shell.rs       # Population lifecycle
+│   │   ├── evolution.rs   # Selection/crossover/mutation
+│   │   ├── brain.rs       # Prediction engine
+│   │   ├── constraints.rs # Drift monitoring
+│   │   ├── population.rs  # Board populations
+│   │   ├── response.rs    # Response surfaces
+│   │   └── readout.rs     # Output layer
+│   └── examples/          # 5 examples (QCD, rehearsal, lifecycle, ...)
+├── demos/                 # Interactive egui demos
+│   └── src/interactive.rs
+├── whitePaper/            # Comprehensive docs
+├── CHANGELOG.md
+├── CONTEXT.md
+└── deny.toml
 ```
 
 ---

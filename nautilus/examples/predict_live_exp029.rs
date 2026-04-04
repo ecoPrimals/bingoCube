@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Predict Live Exp 029 Data Using Shell Trained on Historical Data
 //!
 //! Trains the Nautilus Shell on Exp 024+028 (historical), then makes
@@ -184,11 +185,11 @@ fn main() {
     );
     println!("  {:─>4}  {:─>10}  {:─>10}  {:─>10}", "", "", "", "");
 
-    for gen in 0..40 {
-        let mse = shell.evolve_generation_seeded(&train_inputs, &train_targets, 1000 + gen);
+    for gen_idx in 0..40 {
+        let mse = shell.evolve_generation_seeded(&train_inputs, &train_targets, 1000 + gen_idx);
         let traj = shell.fitness_trajectory();
         let last = traj.last().unwrap();
-        if gen % 10 == 0 || gen == 39 {
+        if gen_idx % 10 == 0 || gen_idx == 39 {
             println!(
                 "  {:>4}  {:>10.6}  {:>10.4}  {:>10.4}",
                 last.0, mse, last.1, last.2

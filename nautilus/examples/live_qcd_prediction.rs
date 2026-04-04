@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Live QCD Trajectory Prediction via Nautilus Shell
 //!
 //! Replays actual dynamical QCD trajectory data from hotSpring Exp 024 + 028
@@ -171,11 +172,11 @@ fn main() {
     );
     println!("  {:─>4}  {:─>10}  {:─>10}  {:─>10}", "", "", "", "");
 
-    for gen in 0..n_generations {
-        let mse = shell.evolve_generation_seeded(&inputs, &targets, 1000 + gen);
+    for gen_idx in 0..n_generations {
+        let mse = shell.evolve_generation_seeded(&inputs, &targets, 1000 + gen_idx);
         let traj = shell.fitness_trajectory();
         let last = traj.last().unwrap();
-        if gen % 5 == 0 || gen == n_generations - 1 {
+        if gen_idx % 5 == 0 || gen_idx == n_generations - 1 {
             println!(
                 "  {:>4}  {:>10.6}  {:>10.4}  {:>10.4}",
                 last.0, mse, last.1, last.2
@@ -277,8 +278,8 @@ fn main() {
         let mut loo_shell =
             NautilusShell::from_seed(loo_config, loo_instance, 42 + hold_out as u64);
 
-        for gen in 0..20 {
-            loo_shell.evolve_generation_seeded(&train_inputs, &train_targets, 2000 + gen);
+        for gen_idx in 0..20 {
+            loo_shell.evolve_generation_seeded(&train_inputs, &train_targets, 2000 + gen_idx);
         }
 
         let pred = loo_shell.predict(&inputs[hold_out]);

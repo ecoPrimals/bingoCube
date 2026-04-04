@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Board populations — ensembles of boards that form a generation.
 //!
 //! A [`Population`] is a set of boards that collectively act as the reservoir.
@@ -184,11 +185,7 @@ fn pearson_correlation(x: &[f64], y: &[f64], n: usize) -> f64 {
     }
 
     let denom = (var_x * var_y).sqrt();
-    if denom < 1e-15 {
-        0.0
-    } else {
-        cov / denom
-    }
+    if denom < 1e-15 { 0.0 } else { cov / denom }
 }
 
 #[cfg(test)]

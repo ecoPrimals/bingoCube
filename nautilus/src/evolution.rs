@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //! Evolution — selection, crossover, and mutation to breed the next generation.
 //!
 //! After a population is evaluated for fitness, evolution creates the next
@@ -158,7 +159,7 @@ impl Evolution {
             return ranked[rng.gen_range(0..ranked.len())].0;
         }
 
-        let mut threshold = rng.gen::<f64>() * total;
+        let mut threshold = rng.r#gen::<f64>() * total;
         for &(idx, fitness) in ranked {
             threshold -= fitness;
             if threshold <= 0.0 {
@@ -187,7 +188,7 @@ impl Evolution {
         if evo_config.column_crossover {
             // Column-swap crossover: each column is taken from one parent
             for col in 0..size {
-                let source = if rng.gen::<bool>() {
+                let source = if rng.r#gen::<bool>() {
                     parent_a
                 } else {
                     parent_b
@@ -200,7 +201,7 @@ impl Evolution {
             // Cell-level crossover: each cell is taken from one parent
             for row in 0..size {
                 for col in 0..size {
-                    let source = if rng.gen::<bool>() {
+                    let source = if rng.r#gen::<bool>() {
                         parent_a
                     } else {
                         parent_b
@@ -235,7 +236,7 @@ impl Evolution {
                     }
                 }
 
-                if rng.gen::<f64>() < evo_config.mutation_rate {
+                if rng.r#gen::<f64>() < evo_config.mutation_rate {
                     // Replace with a random value from the column's range
                     // that isn't already used in this column
                     let used: Vec<u32> = (0..size)
@@ -255,7 +256,7 @@ impl Evolution {
         }
 
         // Inherit permutation from a random parent
-        let permutation = if rng.gen::<bool>() {
+        let permutation = if rng.r#gen::<bool>() {
             parent_a.permutation.clone()
         } else {
             parent_b.permutation.clone()
@@ -406,9 +407,9 @@ mod tests {
             .collect();
         let targets: Vec<Vec<f64>> = (0..30).map(|i| vec![i as f64 / 30.0]).collect();
 
-        for gen in 0..5 {
+        for gen_idx in 0..5 {
             let next = Evolution::next_generation(&pop, &evo_config, &mut rng).unwrap();
-            assert_eq!(next.generation, gen + 1);
+            assert_eq!(next.generation, gen_idx + 1);
             pop = next;
             pop.evaluate_fitness(&inputs, &targets);
         }

@@ -7,10 +7,41 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 
+# Same baseline as workspace lints, plus targeted allows for egui/animation/audio glue.
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+# Intentional casts and float patterns in UI/sonification code.
+cast_lossless = "allow"
+cast_possible_truncation = "allow"
+cast_possible_wrap = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+imprecise_flops = "allow"
+missing_const_for_fn = "allow"
+suboptimal_flops = "allow"
+# Formatting / style lints that are noisy in adapter glue code.
+collapsible_if = "allow"
+doc_markdown = "allow"
+format_push_string = "allow"
+map_unwrap_or = "allow"
+missing_panics_doc = "allow"
+uninlined_format_args = "allow"
+float_cmp = "allow"
+match_same_arms = "allow"
+manual_let_else = "allow"
+unused_self = "allow"
+
 [dependencies]
 bingocube-core.workspace = true
 serde.workspace = true
 thiserror.workspace = true
+petal-tongue-animation = { path = "../../petalTongue/crates/petal-tongue-animation", optional = true }
 
 # Visual adapter dependencies (optional)
 egui = { workspace = true, optional = true }
@@ -18,14 +49,11 @@ egui = { workspace = true, optional = true }
 # Audio adapter dependencies (optional)
 # rodio = { version = "0.19", optional = true }
 
-# Animation adapter dependencies (optional)
-# Will be removed when extracted
-
 [features]
 default = []
 visual = ["egui"]
 audio = []  # rodio when ALSA available
-animation = []  # Will be feature-gated properly
+animation = ["dep:petal-tongue-animation"]
 all = ["visual", "audio", "animation"]
 
 [dev-dependencies]
