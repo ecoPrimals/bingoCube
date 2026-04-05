@@ -518,9 +518,7 @@ mod tests {
             let inputs: Vec<ReservoirInput> = (0..10)
                 .map(|i| ReservoirInput::Continuous(vec![i as f64 / 10.0, 0.0, 0.0]))
                 .collect();
-            let targets: Vec<Vec<f64>> = (0..10)
-                .map(|i| vec![i as f64 / 10.0, 0.5, 0.5])
-                .collect();
+            let targets: Vec<Vec<f64>> = (0..10).map(|i| vec![i as f64 / 10.0, 0.5, 0.5]).collect();
             (inputs, targets)
         };
         shell.evolve_generation_seeded(&inputs, &targets, 100);

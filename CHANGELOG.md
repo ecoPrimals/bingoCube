@@ -24,6 +24,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - 22 clippy errors (cast safety, doc_markdown, const fn, option_if_let_else, iterator patterns)
 - Restored `animation` module behind `animation` feature gate in adapters
 
+### Changed (Deep Debt Sprint — 2026-04-05)
+- Public-readiness scrub: internal docs removed, home paths scrubbed, path dep made optional
+- Coverage: 62.6% → 83.4% (73 tests, tarpaulin.toml with fail-under=60.0)
+- Refactored shell.rs into shell.rs + snapshot.rs + evolve.rs
+- README AGPL wording fixed, whitePaper license aligned
+
 ## [0.1.0] — 2025-12-26
 
 ### Added

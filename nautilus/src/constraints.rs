@@ -9,8 +9,8 @@
 //! making the landscape less rugged and easier for evolution to navigate.
 
 use bingocube_core::{BingoCubeError, Board, Config};
-use rand::seq::SliceRandom;
 use rand::Rng;
+use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 
 /// Constraint level applied to board generation and evolution.

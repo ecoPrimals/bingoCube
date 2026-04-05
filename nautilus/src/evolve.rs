@@ -61,9 +61,8 @@ pub fn evolve_one_generation<R: Rng>(
             let deficit = new_size.saturating_sub(pop_size);
             if deficit > 0 {
                 for _ in 0..deficit {
-                    let board =
-                        bingocube_core::Board::generate(&shell.config.board_config, rng)
-                            .expect("valid config");
+                    let board = bingocube_core::Board::generate(&shell.config.board_config, rng)
+                        .expect("valid config");
                     shell.current_population.boards.push(board);
                 }
             }
@@ -75,8 +74,7 @@ pub fn evolve_one_generation<R: Rng>(
     if !shell.concept_edges.is_empty() {
         let n_edge = (pop_size / 4).max(1).min(shell.concept_edges.len());
         let ranked = shell.current_population.ranked_boards();
-        let worst_indices: Vec<usize> =
-            ranked.iter().rev().take(n_edge).map(|&(i, _)| i).collect();
+        let worst_indices: Vec<usize> = ranked.iter().rev().take(n_edge).map(|&(i, _)| i).collect();
 
         for (slot, edge_features) in worst_indices.iter().zip(shell.concept_edges.iter()) {
             if let Ok(mut seeded) =

@@ -45,12 +45,12 @@
 mod brain;
 mod constraints;
 mod evolution;
+mod evolve;
 mod population;
 mod readout;
 mod response;
-mod snapshot;
 mod shell;
-mod evolve;
+mod snapshot;
 
 pub use brain::{BetaObservation, NautilusBrain, NautilusBrainConfig};
 pub use constraints::{ConstraintLevel, DriftAction, DriftMonitor, EdgeSeeder, board_satisfies};

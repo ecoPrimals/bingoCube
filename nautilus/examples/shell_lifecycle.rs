@@ -143,7 +143,8 @@ fn main() {
     println!("  {:─>4}  {:─>10}  {:─>10}  {:─>10}", "", "", "", "");
 
     for gen_idx in 0..10 {
-        let mse = field_shell.evolve_generation_seeded(&field_inputs, &field_targets, 300 + gen_idx);
+        let mse =
+            field_shell.evolve_generation_seeded(&field_inputs, &field_targets, 300 + gen_idx);
         let traj = field_shell.fitness_trajectory();
         let last = traj.last().unwrap();
         if gen_idx % 2 == 0 || gen_idx == 9 {

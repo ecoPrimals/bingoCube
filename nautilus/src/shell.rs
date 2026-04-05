@@ -648,11 +648,7 @@ mod tests {
         let targets: Vec<Vec<f64>> = (0..n)
             .map(|i| {
                 let x = i as f64 / n as f64;
-                if x < 0.5 {
-                    vec![x]
-                } else {
-                    vec![x + 2.0]
-                }
+                if x < 0.5 { vec![x] } else { vec![x + 2.0] }
             })
             .collect();
 
@@ -727,7 +723,11 @@ mod tests {
 
         let tiny_in = inputs.iter().take(2).cloned().collect::<Vec<_>>();
         let tiny_t = targets.iter().take(2).cloned().collect::<Vec<_>>();
-        assert!(shell.detect_concept_edges(&tiny_in, &tiny_t, 2.0).is_empty());
+        assert!(
+            shell
+                .detect_concept_edges(&tiny_in, &tiny_t, 2.0)
+                .is_empty()
+        );
     }
 
     #[test]

@@ -196,7 +196,8 @@ impl Board {
             let mut value_idx = 0;
             for (row, row_cells) in grid.iter_mut().enumerate().take(size) {
                 if let Some((free_row, free_col)) = config.free_cell
-                    && row == free_row && col == free_col
+                    && row == free_row
+                    && col == free_col
                 {
                     row_cells[col] = None; // Free cell
                     continue;

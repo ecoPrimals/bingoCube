@@ -271,7 +271,9 @@ mod tests {
         assert!(!r.show_grid_lines);
         assert!(r.show_values);
 
-        r.set_reveal(-0.5).set_animation_speed(-1.0).set_animate(false);
+        r.set_reveal(-0.5)
+            .set_animation_speed(-1.0)
+            .set_animate(false);
         assert_eq!(r.reveal_x, 0.0);
         assert_eq!(r.animation_speed, 0.0);
         assert!(!r.is_animating());
@@ -310,7 +312,11 @@ mod tests {
         for i in 0..16_u8 {
             seen.insert(BingoCubeVisualRenderer::color_index_to_color32(i));
         }
-        assert_eq!(seen.len(), 16, "each palette index 0..16 should map to a distinct Color32");
+        assert_eq!(
+            seen.len(),
+            16,
+            "each palette index 0..16 should map to a distinct Color32"
+        );
     }
 
     #[test]

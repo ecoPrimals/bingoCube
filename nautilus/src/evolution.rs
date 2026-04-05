@@ -13,8 +13,8 @@
 //! Children inherit high-performing parents' structure but are never clones.
 
 use bingocube_core::{BingoCubeError, Board, Config};
-use rand::seq::SliceRandom;
 use rand::Rng;
+use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 
 use crate::population::Population;
@@ -513,9 +513,7 @@ mod tests {
         let pop = make_evaluated_pop(&mut rng);
 
         let evo_config = EvolutionConfig {
-            selection: SelectionMethod::Elitism {
-                survivors: 1_000,
-            },
+            selection: SelectionMethod::Elitism { survivors: 1_000 },
             mutation_rate: 0.1,
             column_crossover: true,
             cell_crossover: false,

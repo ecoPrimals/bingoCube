@@ -2,7 +2,7 @@
 
 **Human-Verifiable Cryptographic Commitment System**
 
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
+[![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-blue.svg)](LICENSE)
 
 > A pure cryptographic tool for creating memorable, visual, and auditory patterns that any system can use for identity verification, peer trust, content fingerprinting, and computation proofs.
 
@@ -292,6 +292,8 @@ bingoCube/
 ├── nautilus/              # Evolutionary reservoir computing
 │   ├── src/
 │   │   ├── shell.rs       # Population lifecycle
+│   │   ├── snapshot.rs    # Shell snapshots
+│   │   ├── evolve.rs      # Evolution helpers
 │   │   ├── evolution.rs   # Selection/crossover/mutation
 │   │   ├── brain.rs       # Prediction engine
 │   │   ├── constraints.rs # Drift monitoring
@@ -370,14 +372,14 @@ We welcome contributions! Areas of interest:
 
 - Core must remain dependency-minimal
 - All features must be optional (feature-gated)
-- Maintain test coverage (currently 100% for core)
+- Maintain test coverage (workspace: 73 tests, ~83% line coverage)
 - Document security properties
 
 ---
 
 ## 📄 License
 
-**AGPL-3.0**
+**AGPL-3.0-or-later**
 
 BingoCube is free and open-source software. You may:
 - ✅ Use under AGPL-3.0-or-later terms (network use triggers source disclosure obligation). See LICENSE for details.
@@ -416,14 +418,17 @@ Special thanks to the ecoPrimals community for vision and feedback.
 
 ## 📊 Project Status
 
-- ✅ Core implementation (600 lines, 7 tests, 100% coverage)
-- ✅ Visual adapters (800 lines, 2 tests)
+- ✅ Workspace tests: **73 tests**, **83.4%** line coverage (tarpaulin)
+- ✅ Edition **2024**, **clippy** pedantic + nursery clean
+- ✅ License **AGPL-3.0-or-later**
+- ✅ Core implementation (~600 lines)
+- ✅ Visual adapters (~800 lines)
 - ✅ Whitepaper collection (~180 pages)
 - ✅ Interactive demo
 - 🟡 Crates.io publication (pending)
 - 🟡 Primal integrations (in progress)
 
-**Version**: 0.1.0  
+**Version**: 0.1.1  
 **Status**: Production-ready for early adopters
 
 ---
