@@ -505,4 +505,123 @@ mod tests {
         assert_eq!(restored.observations.len(), brain.observations.len());
         assert_eq!(restored.trained, brain.trained);
     }
+
+    #[test]
+    fn test_from_shell_and_export() {
+        let shell_cfg = ShellConfig {
+            population_size: 6,
+            n_targets: 3,
+            ..Default::default()
+        };
+        let mut shell = NautilusShell::from_seed(shell_cfg, InstanceId::new("donor"), 7);
+        let (inputs, targets) = {
+            let inputs: Vec<ReservoirInput> = (0..10)
+                .map(|i| ReservoirInput::Continuous(vec![i as f64 / 10.0, 0.0, 0.0]))
+                .collect();
+            let targets: Vec<Vec<f64>> = (0..10)
+                .map(|i| vec![i as f64 / 10.0, 0.5, 0.5])
+                .collect();
+            (inputs, targets)
+        };
+        shell.evolve_generation_seeded(&inputs, &targets, 100);
+
+        let brain_cfg = NautilusBrainConfig {
+            shell: shell.config.clone(),
+            generations_per_cycle: 1,
+            min_training_points: 5,
+            ..Default::default()
+        };
+        let brain = NautilusBrain::from_shell(brain_cfg, shell, "receiver");
+        assert!(brain.trained);
+        assert_eq!(brain.export_shell().generation(), brain.shell.generation());
+    }
+
+    #[test]
+    fn test_predict_dynamical_requires_three_targets() {
+        let mut shell_cfg = ShellConfig::default();
+        shell_cfg.n_targets = 1;
+        let brain_cfg = NautilusBrainConfig {
+            shell: shell_cfg,
+            generations_per_cycle: 1,
+            min_training_points: 5,
+            ..Default::default()
+        };
+        let mut brain = NautilusBrain::new(brain_cfg, "one-target");
+        for obs in make_observations() {
+            brain.observe(obs);
+        }
+        brain.train().expect("trained");
+        assert!(brain.predict_dynamical(5.0, Some(0.4)).is_none());
+        assert!(brain.estimate_cg(5.0).is_none());
+    }
+
+    #[test]
+    fn test_screen_candidates_untrained() {
+        let brain = NautilusBrain::new(NautilusBrainConfig::default(), "cold");
+        let scored = brain.screen_candidates(&[1.0, 2.0]);
+        assert_eq!(scored, vec![(1.0, 0.0), (2.0, 0.0)]);
+    }
+
+    #[test]
+    fn test_detect_concept_edges_requires_many_observations() {
+        let mut brain = NautilusBrain::new(NautilusBrainConfig::default(), "sparse");
+        for i in 0..4 {
+            let beta = 4.0 + i as f64 * 0.1;
+            brain.observe(BetaObservation {
+                beta,
+                quenched_plaq: None,
+                quenched_plaq_var: None,
+                plaquette: 0.3,
+                cg_iters: 1000.0,
+                acceptance: 0.5,
+                delta_h_abs: 0.1,
+                anderson_r: None,
+                anderson_lambda_min: None,
+            });
+        }
+        assert!(brain.detect_concept_edges().is_empty());
+    }
+
+    #[test]
+    fn test_make_input_interpolation_and_defaults() {
+        let mut cfg = NautilusBrainConfig::default();
+        cfg.shell.n_targets = 3;
+        cfg.generations_per_cycle = 2;
+        let mut brain = NautilusBrain::new(cfg, "interp");
+
+        brain.observe(BetaObservation {
+            beta: 5.0,
+            quenched_plaq: Some(0.41),
+            quenched_plaq_var: None,
+            plaquette: 0.42,
+            cg_iters: 2000.0,
+            acceptance: 0.6,
+            delta_h_abs: 0.2,
+            anderson_r: Some(0.5),
+            anderson_lambda_min: Some(0.04),
+        });
+        brain.observe(BetaObservation {
+            beta: 5.5,
+            quenched_plaq: None,
+            quenched_plaq_var: None,
+            plaquette: 0.5,
+            cg_iters: 1800.0,
+            acceptance: 0.55,
+            delta_h_abs: 0.2,
+            anderson_r: None,
+            anderson_lambda_min: None,
+        });
+
+        for obs in make_observations() {
+            brain.observe(obs);
+        }
+        brain.train().expect("train");
+
+        let p = brain
+            .predict_dynamical(5.25, None)
+            .expect("three targets trained");
+        assert!(p.0.is_finite() && p.1.is_finite() && p.2.is_finite());
+        assert!(brain.estimate_cg(5.0).is_some());
+        assert!(!brain.is_drifting());
+    }
 }

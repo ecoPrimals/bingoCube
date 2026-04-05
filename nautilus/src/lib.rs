@@ -48,7 +48,9 @@ mod evolution;
 mod population;
 mod readout;
 mod response;
+mod snapshot;
 mod shell;
+mod evolve;
 
 pub use brain::{BetaObservation, NautilusBrain, NautilusBrainConfig};
 pub use constraints::{ConstraintLevel, DriftAction, DriftMonitor, EdgeSeeder, board_satisfies};

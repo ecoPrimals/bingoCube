@@ -380,7 +380,7 @@ We welcome contributions! Areas of interest:
 **AGPL-3.0**
 
 BingoCube is free and open-source software. You may:
-- ✅ Use in any project (open or closed source)
+- ✅ Use under AGPL-3.0-or-later terms (network use triggers source disclosure obligation). See LICENSE for details.
 - ✅ Modify and distribute
 - ✅ Use commercially
 

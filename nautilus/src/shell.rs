@@ -17,99 +17,12 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::constraints::{DriftAction, DriftMonitor, EdgeSeeder};
-use crate::evolution::{Evolution, EvolutionConfig, SelectionMethod};
+use crate::constraints::DriftMonitor;
 use crate::population::Population;
 use crate::readout::LinearReadout;
 use crate::response::{ReservoirInput, ResponseVector};
-use bingocube_core::Config;
 
-/// Unique identifier for an instance (machine/node).
-/// BLAKE3 hash of machine identity + timestamp.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct InstanceId(pub String);
-
-impl InstanceId {
-    /// Create a new instance ID from a human-readable name.
-    pub fn new(name: &str) -> Self {
-        let hash = blake3::hash(name.as_bytes());
-        Self(format!("{}:{}", name, &hash.to_hex()[..12]))
-    }
-
-    /// The human-readable portion of the ID.
-    pub fn name(&self) -> &str {
-        self.0.split(':').next().unwrap_or(&self.0)
-    }
-}
-
-/// Record of a single generation's evolution.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GenerationRecord {
-    /// Generation number.
-    pub generation: usize,
-
-    /// Mean fitness of the population at evaluation time.
-    pub mean_fitness: f64,
-
-    /// Best fitness in the population.
-    pub best_fitness: f64,
-
-    /// Number of boards in the population.
-    pub population_size: usize,
-
-    /// Instance that produced this generation.
-    pub origin_instance: InstanceId,
-
-    /// Number of training samples used for evaluation.
-    pub n_training_samples: usize,
-
-    /// N_e * s ratio at this generation.
-    pub ne_s: f64,
-
-    /// Action taken by the drift monitor.
-    pub drift_action: DriftAction,
-}
-
-/// Configuration for the nautilus shell.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ShellConfig {
-    /// Board configuration.
-    pub board_config: Config,
-
-    /// Population size (number of boards per generation).
-    pub population_size: usize,
-
-    /// Evolution parameters.
-    pub evolution: EvolutionConfig,
-
-    /// Number of readout targets.
-    pub n_targets: usize,
-
-    /// Input dimensionality for reservoir.
-    pub input_dim: usize,
-
-    /// Ridge regularization for readout.
-    pub ridge_lambda: f64,
-
-    /// Maximum generations to keep in shell history.
-    /// Older generations are pruned to save memory, but their
-    /// GenerationRecords are kept.
-    pub max_stored_generations: usize,
-}
-
-impl Default for ShellConfig {
-    fn default() -> Self {
-        Self {
-            board_config: Config::default(),
-            population_size: 16,
-            evolution: EvolutionConfig::default(),
-            n_targets: 1,
-            input_dim: 1,
-            ridge_lambda: 1e-6,
-            max_stored_generations: 5,
-        }
-    }
-}
+pub use crate::snapshot::{Akd1000Export, GenerationRecord, InstanceId, ShellConfig};
 
 /// The Nautilus Shell: the full evolutionary history with trained readout.
 ///
@@ -225,98 +138,8 @@ impl NautilusShell {
     ///
     /// Returns the MSE of the readout after training.
     pub fn evolve_generation(&mut self, inputs: &[ReservoirInput], targets: &[Vec<f64>]) -> f64 {
-        assert_eq!(inputs.len(), targets.len());
         let mut rng = rand::thread_rng();
-
-        // 1. Project all inputs through current population
-        let responses: Vec<ResponseVector> = inputs
-            .iter()
-            .map(|inp| self.current_population.project(inp))
-            .collect();
-
-        // 2. Train readout
-        self.readout.train(&responses, targets);
-        let mse = self.readout.mse(&responses, targets);
-
-        // 3. Evaluate board fitness
-        self.current_population.evaluate_fitness(inputs, targets);
-
-        // 4. Drift monitor: record and apply
-        let mean_fit = self.current_population.mean_fitness();
-        let best_fit = self.current_population.best_fitness();
-        let pop_size = self.current_population.size();
-        self.drift_monitor.record(
-            self.current_population.generation,
-            pop_size,
-            mean_fit,
-            best_fit,
-        );
-        let drift_action = self.drift_monitor.recommendation();
-        let mut evo_config = self.config.evolution.clone();
-
-        match &drift_action {
-            DriftAction::IncreaseSelection => match &mut evo_config.selection {
-                SelectionMethod::Elitism { survivors } => {
-                    *survivors = (*survivors / 2).max(1);
-                }
-                SelectionMethod::Tournament { tournament_size } => {
-                    *tournament_size = (*tournament_size + 2).min(pop_size);
-                }
-                SelectionMethod::Roulette => {}
-            },
-            DriftAction::IncreasePop { factor } => {
-                let new_size = (pop_size as f64 * factor).ceil() as usize;
-                let deficit = new_size.saturating_sub(pop_size);
-                if deficit > 0 {
-                    for _ in 0..deficit {
-                        let board =
-                            bingocube_core::Board::generate(&self.config.board_config, &mut rng)
-                                .expect("valid config");
-                        self.current_population.boards.push(board);
-                    }
-                }
-            }
-            DriftAction::Continue => {}
-        }
-
-        // 5. Edge seeding: replace worst boards with edge-biased boards
-        if !self.concept_edges.is_empty() {
-            let n_edge = (pop_size / 4).max(1).min(self.concept_edges.len());
-            let ranked = self.current_population.ranked_boards();
-            let worst_indices: Vec<usize> =
-                ranked.iter().rev().take(n_edge).map(|&(i, _)| i).collect();
-
-            for (slot, edge_features) in worst_indices.iter().zip(self.concept_edges.iter()) {
-                if let Ok(mut seeded) =
-                    EdgeSeeder::seed_boards(&self.config.board_config, 1, edge_features, &mut rng)
-                {
-                    if let Some(board) = seeded.pop() {
-                        self.current_population.boards[*slot] = board;
-                    }
-                }
-            }
-        }
-
-        let ne_s = self.drift_monitor.latest_ne_s();
-
-        // 6. Record generation
-        self.history.push(GenerationRecord {
-            generation: self.current_population.generation,
-            mean_fitness: mean_fit,
-            best_fitness: best_fit,
-            population_size: self.current_population.size(),
-            origin_instance: self.origin.clone(),
-            n_training_samples: inputs.len(),
-            ne_s,
-            drift_action: drift_action.clone(),
-        });
-
-        // 7. Breed next generation
-        let next = Evolution::next_generation(&self.current_population, &evo_config, &mut rng)
-            .expect("evolution should succeed");
-        self.current_population = next;
-
-        mse
+        crate::evolve::evolve_one_generation(self, inputs, targets, &mut rng)
     }
 
     /// Evolve with a deterministic seed (reproducible evolution).
@@ -326,89 +149,9 @@ impl NautilusShell {
         targets: &[Vec<f64>],
         seed: u64,
     ) -> f64 {
-        assert_eq!(inputs.len(), targets.len());
         use rand::SeedableRng;
         let mut rng = rand_chacha::ChaCha20Rng::seed_from_u64(seed);
-
-        let responses: Vec<ResponseVector> = inputs
-            .iter()
-            .map(|inp| self.current_population.project(inp))
-            .collect();
-
-        self.readout.train(&responses, targets);
-        let mse = self.readout.mse(&responses, targets);
-
-        self.current_population.evaluate_fitness(inputs, targets);
-
-        let mean_fit = self.current_population.mean_fitness();
-        let best_fit = self.current_population.best_fitness();
-        let pop_size = self.current_population.size();
-        self.drift_monitor.record(
-            self.current_population.generation,
-            pop_size,
-            mean_fit,
-            best_fit,
-        );
-        let drift_action = self.drift_monitor.recommendation();
-        let mut evo_config = self.config.evolution.clone();
-
-        match &drift_action {
-            DriftAction::IncreaseSelection => match &mut evo_config.selection {
-                SelectionMethod::Elitism { survivors } => {
-                    *survivors = (*survivors / 2).max(1);
-                }
-                SelectionMethod::Tournament { tournament_size } => {
-                    *tournament_size = (*tournament_size + 2).min(pop_size);
-                }
-                SelectionMethod::Roulette => {}
-            },
-            DriftAction::IncreasePop { factor } => {
-                let new_size = (pop_size as f64 * factor).ceil() as usize;
-                let deficit = new_size.saturating_sub(pop_size);
-                for _ in 0..deficit {
-                    let board =
-                        bingocube_core::Board::generate(&self.config.board_config, &mut rng)
-                            .expect("valid config");
-                    self.current_population.boards.push(board);
-                }
-            }
-            DriftAction::Continue => {}
-        }
-
-        if !self.concept_edges.is_empty() {
-            let n_edge = (pop_size / 4).max(1).min(self.concept_edges.len());
-            let ranked = self.current_population.ranked_boards();
-            let worst_indices: Vec<usize> =
-                ranked.iter().rev().take(n_edge).map(|&(i, _)| i).collect();
-            for (slot, edge_features) in worst_indices.iter().zip(self.concept_edges.iter()) {
-                if let Ok(mut seeded) =
-                    EdgeSeeder::seed_boards(&self.config.board_config, 1, edge_features, &mut rng)
-                {
-                    if let Some(board) = seeded.pop() {
-                        self.current_population.boards[*slot] = board;
-                    }
-                }
-            }
-        }
-
-        let ne_s = self.drift_monitor.latest_ne_s();
-
-        self.history.push(GenerationRecord {
-            generation: self.current_population.generation,
-            mean_fitness: mean_fit,
-            best_fitness: best_fit,
-            population_size: self.current_population.size(),
-            origin_instance: self.origin.clone(),
-            n_training_samples: inputs.len(),
-            ne_s,
-            drift_action: drift_action.clone(),
-        });
-
-        let next = Evolution::next_generation(&self.current_population, &evo_config, &mut rng)
-            .expect("evolution should succeed");
-        self.current_population = next;
-
-        mse
+        crate::evolve::evolve_one_generation(self, inputs, targets, &mut rng)
     }
 
     /// Predict from a new input using the trained readout.
@@ -632,60 +375,10 @@ impl NautilusShell {
     }
 }
 
-/// AKD1000 int4-quantized weight export for FullyConnected layer deployment.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Akd1000Export {
-    /// Quantized weights in [-8, 7] (int4 range), shape [n_targets][input_dim].
-    pub quantized_weights: Vec<Vec<i8>>,
-
-    /// Per-target dequantization scale: w_float ≈ w_q / scale.
-    pub scales: Vec<f64>,
-
-    /// Bias vector (kept in full precision).
-    pub biases: Vec<f64>,
-
-    /// Input dimensionality.
-    pub input_dim: usize,
-
-    /// Number of output targets.
-    pub n_targets: usize,
-}
-
-impl Akd1000Export {
-    /// Dequantize and predict (for validation against hardware).
-    pub fn predict_dequantized(&self, activations: &[f64]) -> Vec<f64> {
-        let mut output = self.biases.clone();
-        for t in 0..self.n_targets {
-            let scale = self.scales[t];
-            for i in 0..self.input_dim {
-                let w_approx = self.quantized_weights[t][i] as f64 / scale;
-                let x = activations.get(i).copied().unwrap_or(0.0);
-                output[t] += w_approx * x;
-            }
-        }
-        output
-    }
-
-    /// Compute quantization error (MSE) against the original readout.
-    pub fn quantization_mse(&self, readout: &LinearReadout, responses: &[ResponseVector]) -> f64 {
-        if responses.is_empty() {
-            return 0.0;
-        }
-        let mut total = 0.0;
-        for resp in responses {
-            let orig = readout.predict(resp);
-            let quant = self.predict_dequantized(&resp.activations);
-            for (o, q) in orig.iter().zip(quant.iter()) {
-                total += (o - q).powi(2);
-            }
-        }
-        total / responses.len() as f64
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::readout::LinearReadout;
 
     fn synthetic_dataset(n: usize) -> (Vec<ReservoirInput>, Vec<Vec<f64>>) {
         let inputs: Vec<ReservoirInput> = (0..n)
@@ -990,5 +683,107 @@ mod tests {
             let restored: DriftAction = serde_json::from_str(&json).unwrap();
             assert_eq!(*action, restored);
         }
+    }
+
+    #[test]
+    fn test_shell_new_and_evolve_generation_unseeded() {
+        let config = ShellConfig {
+            population_size: 6,
+            n_targets: 1,
+            ..Default::default()
+        };
+        let mut shell = NautilusShell::new(config, InstanceId::new("rng-shell"));
+        let (inputs, targets) = synthetic_dataset(12);
+        let mse = shell.evolve_generation(&inputs, &targets);
+        assert!(mse.is_finite());
+        assert_eq!(shell.generation(), 1);
+    }
+
+    #[test]
+    fn test_continue_from_does_not_duplicate_lineage_id() {
+        let config = ShellConfig {
+            population_size: 4,
+            n_targets: 1,
+            ..Default::default()
+        };
+        let id = InstanceId::new("same-node");
+        let shell = NautilusShell::from_seed(config, id.clone(), 1);
+        let depth_before = shell.lineage_depth();
+        let continued = NautilusShell::continue_from(shell, id.clone());
+        assert_eq!(continued.lineage_depth(), depth_before);
+        assert_eq!(continued.origin, id);
+    }
+
+    #[test]
+    fn test_detect_concept_edges_short_dataset_returns_empty() {
+        let config = ShellConfig {
+            population_size: 4,
+            n_targets: 1,
+            ..Default::default()
+        };
+        let mut shell = NautilusShell::from_seed(config, InstanceId::new("short"), 42);
+        let (inputs, targets) = synthetic_dataset(20);
+        shell.evolve_generation_seeded(&inputs, &targets, 1);
+
+        let tiny_in = inputs.iter().take(2).cloned().collect::<Vec<_>>();
+        let tiny_t = targets.iter().take(2).cloned().collect::<Vec<_>>();
+        assert!(shell.detect_concept_edges(&tiny_in, &tiny_t, 2.0).is_empty());
+    }
+
+    #[test]
+    fn test_generation_record_and_shell_config_serde_roundtrip() {
+        let record = GenerationRecord {
+            generation: 3,
+            mean_fitness: 0.2,
+            best_fitness: 0.9,
+            population_size: 8,
+            origin_instance: InstanceId::new("rec"),
+            n_training_samples: 40,
+            ne_s: 1.5,
+            drift_action: crate::constraints::DriftAction::Continue,
+        };
+        let json = serde_json::to_string(&record).unwrap();
+        let back: GenerationRecord = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.generation, record.generation);
+        assert_eq!(back.ne_s, record.ne_s);
+
+        let cfg = ShellConfig::default();
+        let cfg_json = serde_json::to_string(&cfg).unwrap();
+        let cfg_back: ShellConfig = serde_json::from_str(&cfg_json).unwrap();
+        assert_eq!(cfg_back.population_size, cfg.population_size);
+        assert_eq!(cfg_back.max_stored_generations, cfg.max_stored_generations);
+    }
+
+    #[test]
+    fn test_akd1000_export_predict_and_quantization_edge_cases() {
+        let export = Akd1000Export {
+            quantized_weights: vec![vec![1, -2, 3]; 2],
+            scales: vec![2.0, 4.0],
+            biases: vec![0.1, -0.2],
+            input_dim: 3,
+            n_targets: 2,
+        };
+
+        let pred = export.predict_dequantized(&[1.0, 1.0]);
+        assert_eq!(pred.len(), 2);
+        assert!(pred[0].is_finite());
+
+        let readout = LinearReadout::new(3, 2);
+        assert_eq!(export.quantization_mse(&readout, &[]), 0.0);
+    }
+
+    #[test]
+    fn test_shell_is_drifting_and_instance_id_name() {
+        let id = InstanceId::new("edge-case-name");
+        assert_eq!(id.name(), "edge-case-name");
+
+        let config = ShellConfig {
+            population_size: 4,
+            n_targets: 1,
+            ..Default::default()
+        };
+        let shell = NautilusShell::from_seed(config, id, 42);
+        assert!(!shell.is_drifting());
+        assert_eq!(shell.latest_ne_s(), 0.0);
     }
 }

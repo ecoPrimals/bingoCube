@@ -3,10 +3,54 @@
 //!
 //! This adapter helps animation systems create smooth transitions for BingoCube reveals.
 //! It's OPTIONAL - BingoCube core doesn't need this.
+//!
+//! The animation engine types below are self-contained so this crate builds standalone
+//! without a sibling [petalTongue](https://github.com/ecoPrimals) checkout. Optional path
+//! wiring to `petal-tongue-animation` is documented in `adapters/Cargo.toml`.
 
 use bingocube_core::BingoCube;
-use petal_tongue_animation::AnimationEngine;
 use std::time::Duration;
+
+/// Minimal engine for progressive-reveal pulses and edge slots (standalone; no path deps).
+#[derive(Debug, Default)]
+pub struct AnimationEngine {
+    /// Active pulse effects keyed by cell id.
+    pub node_pulses: Vec<NodePulse>,
+    /// Reserved edge animation slots (future use).
+    pub edge_animations: Vec<EdgeAnimationSlot>,
+}
+
+/// Pulse intensity for a single cell in the animation engine.
+#[derive(Debug, Clone)]
+pub struct NodePulse {
+    /// Identifier (for example `cell_i_j`).
+    pub node_id: String,
+    /// Pulse strength in `0.0..=1.0`.
+    pub intensity: f32,
+}
+
+/// Placeholder for future edge-based animations.
+#[derive(Debug)]
+pub struct EdgeAnimationSlot;
+
+impl AnimationEngine {
+    /// Creates an empty engine.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Advances one frame (stub; extend for pulse decay or physics if needed).
+    pub fn update(&mut self) {
+        // Stub: extend here for pulse decay / physics if needed.
+    }
+
+    /// Clears all pulses and edge animations.
+    pub fn clear(&mut self) {
+        self.node_pulses.clear();
+        self.edge_animations.clear();
+    }
+}
 
 /// Animation controller for BingoCube
 #[derive(Debug)]
@@ -95,11 +139,11 @@ impl BingoCubeAnimationController {
         // Update progressive reveal animation
         if self.animate_reveal {
             let delta = f64::from(self.animation_speed) * delta_time.as_secs_f64();
-            
+
             if (self.current_x - self.target_x).abs() < delta {
                 self.current_x = self.target_x;
                 self.animate_reveal = false;
-                
+
                 // Pulse all newly revealed cells
                 if self.pulses_enabled {
                     self.pulse_revealed_cells();
@@ -107,7 +151,7 @@ impl BingoCubeAnimationController {
             } else if self.current_x < self.target_x {
                 let old_x = self.current_x;
                 self.current_x = (self.current_x + delta).min(self.target_x);
-                
+
                 // Add particles for newly revealed cells
                 if self.particles_enabled {
                     self.spawn_reveal_particles(old_x, self.current_x);
@@ -143,9 +187,11 @@ impl BingoCubeAnimationController {
     #[must_use]
     pub fn get_cell_animation(&self, row: usize, col: usize) -> CellAnimation {
         let cell_id = format!("cell_{}_{}", row, col);
-        
+
         // Check for pulse
-        let pulse_intensity = self.animation_engine.node_pulses
+        let pulse_intensity = self
+            .animation_engine
+            .node_pulses
             .iter()
             .find(|p| p.node_id == cell_id)
             .map(|p| p.intensity)
@@ -194,10 +240,10 @@ mod tests {
     #[test]
     fn test_controller_creation() {
         let config = Config::default();
-        let bingocube = BingoCube::from_seed(b"test_seed", config)
-            .expect("Failed to create BingoCube");
+        let bingocube =
+            BingoCube::from_seed(b"test_seed", config).expect("Failed to create BingoCube");
         let controller = BingoCubeAnimationController::new(bingocube);
-        
+
         assert_eq!(controller.current_reveal(), 0.0);
         assert!(controller.particles_enabled);
         assert!(controller.pulses_enabled);
@@ -206,10 +252,10 @@ mod tests {
     #[test]
     fn test_set_reveal_immediate() {
         let config = Config::default();
-        let bingocube = BingoCube::from_seed(b"test_seed", config)
-            .expect("Failed to create BingoCube");
+        let bingocube =
+            BingoCube::from_seed(b"test_seed", config).expect("Failed to create BingoCube");
         let mut controller = BingoCubeAnimationController::new(bingocube);
-        
+
         controller.set_reveal_immediate(0.5);
         assert_eq!(controller.current_reveal(), 0.5);
         assert!(!controller.animate_reveal);
@@ -218,10 +264,10 @@ mod tests {
     #[test]
     fn test_set_target_reveal() {
         let config = Config::default();
-        let bingocube = BingoCube::from_seed(b"test_seed", config)
-            .expect("Failed to create BingoCube");
+        let bingocube =
+            BingoCube::from_seed(b"test_seed", config).expect("Failed to create BingoCube");
         let mut controller = BingoCubeAnimationController::new(bingocube);
-        
+
         controller.set_target_reveal(0.5);
         assert!(controller.animate_reveal);
         assert_eq!(controller.target_x, 0.5);
@@ -230,16 +276,16 @@ mod tests {
     #[test]
     fn test_animation_update() {
         let config = Config::default();
-        let bingocube = BingoCube::from_seed(b"test_seed", config)
-            .expect("Failed to create BingoCube");
+        let bingocube =
+            BingoCube::from_seed(b"test_seed", config).expect("Failed to create BingoCube");
         let mut controller = BingoCubeAnimationController::new(bingocube);
-        
+
         controller.set_animation_speed(1.0);
         controller.set_target_reveal(0.5);
-        
+
         let delta = Duration::from_millis(100);
         controller.update(delta);
-        
+
         // Should have moved towards target
         assert!(controller.current_reveal() > 0.0);
         assert!(controller.current_reveal() <= 0.5);
@@ -248,14 +294,14 @@ mod tests {
     #[test]
     fn test_particles_toggle() {
         let config = Config::default();
-        let bingocube = BingoCube::from_seed(b"test_seed", config)
-            .expect("Failed to create BingoCube");
+        let bingocube =
+            BingoCube::from_seed(b"test_seed", config).expect("Failed to create BingoCube");
         let mut controller = BingoCubeAnimationController::new(bingocube);
-        
+
         controller.set_particles_enabled(false);
         assert!(!controller.particles_enabled);
         assert!(controller.animation_engine.edge_animations.is_empty());
-        
+
         controller.set_particles_enabled(true);
         assert!(controller.particles_enabled);
     }
@@ -263,10 +309,10 @@ mod tests {
     #[test]
     fn test_cell_animation() {
         let config = Config::default();
-        let bingocube = BingoCube::from_seed(b"test_seed", config)
-            .expect("Failed to create BingoCube");
+        let bingocube =
+            BingoCube::from_seed(b"test_seed", config).expect("Failed to create BingoCube");
         let controller = BingoCubeAnimationController::new(bingocube);
-        
+
         let anim = controller.get_cell_animation(2, 2);
         assert_eq!(anim.pulse_intensity, 0.0);
         assert!(!anim.has_incoming_particle);
@@ -276,15 +322,14 @@ mod tests {
     #[test]
     fn test_reset() {
         let config = Config::default();
-        let bingocube = BingoCube::from_seed(b"test_seed", config)
-            .expect("Failed to create BingoCube");
+        let bingocube =
+            BingoCube::from_seed(b"test_seed", config).expect("Failed to create BingoCube");
         let mut controller = BingoCubeAnimationController::new(bingocube);
-        
+
         controller.set_reveal_immediate(0.5);
         controller.reset();
-        
+
         assert_eq!(controller.current_reveal(), 0.0);
         assert!(!controller.animate_reveal);
     }
 }
-

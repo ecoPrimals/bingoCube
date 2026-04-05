@@ -245,12 +245,44 @@ impl BingoCubeVisualRenderer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bingocube_core::Config;
+    use egui::{Pos2, Vec2};
 
     #[test]
     fn test_renderer_creation() {
         let renderer = BingoCubeVisualRenderer::new();
         assert_eq!(renderer.reveal_x, 1.0);
         assert!(!renderer.animate_reveal);
+        assert!(renderer.show_grid_lines);
+        assert!(!renderer.show_values);
+        assert_eq!(renderer.get_reveal(), 1.0);
+    }
+
+    #[test]
+    fn test_builder_chain_and_setters() {
+        let mut r = BingoCubeVisualRenderer::new()
+            .with_reveal(1.5)
+            .with_animation(0.5)
+            .without_grid_lines()
+            .with_values();
+        assert_eq!(r.reveal_x, 1.0);
+        assert!(r.animate_reveal);
+        assert_eq!(r.animation_speed, 0.5);
+        assert!(!r.show_grid_lines);
+        assert!(r.show_values);
+
+        r.set_reveal(-0.5).set_animation_speed(-1.0).set_animate(false);
+        assert_eq!(r.reveal_x, 0.0);
+        assert_eq!(r.animation_speed, 0.0);
+        assert!(!r.is_animating());
+
+        r.animate_to(0.75);
+        assert!(r.is_animating());
+
+        r.reset();
+        assert_eq!(r.reveal_x, 0.0);
+        assert!(!r.is_animating());
+        assert!(r.target_reveal.is_none());
     }
 
     #[test]
@@ -264,5 +296,59 @@ mod tests {
         let color_a = BingoCubeVisualRenderer::color_index_to_color32(0);
         let color_b = BingoCubeVisualRenderer::color_index_to_color32(1);
         assert_ne!(color_a, color_b);
+    }
+
+    #[test]
+    fn test_color_palette_modulo_and_distinctness() {
+        // Indices wrap modulo 16 (palette slots).
+        assert_eq!(
+            BingoCubeVisualRenderer::color_index_to_color32(3),
+            BingoCubeVisualRenderer::color_index_to_color32(19)
+        );
+
+        let mut seen = std::collections::HashSet::new();
+        for i in 0..16_u8 {
+            seen.insert(BingoCubeVisualRenderer::color_index_to_color32(i));
+        }
+        assert_eq!(seen.len(), 16, "each palette index 0..16 should map to a distinct Color32");
+    }
+
+    #[test]
+    fn test_grid_layout_math_matches_render() {
+        let cell_size = 60.0_f32;
+        let config = Config::default();
+        let size = config.grid_size;
+        let grid_size = Vec2::splat(cell_size * size as f32);
+        assert_eq!(grid_size.x, 300.0);
+        assert_eq!(grid_size.y, 300.0);
+
+        let rect_min = Pos2::ZERO;
+        for i in 0..size {
+            for j in 0..size {
+                let min = rect_min + Vec2::new(j as f32 * cell_size, i as f32 * cell_size);
+                let cell = Rect::from_min_size(min, Vec2::splat(cell_size));
+                assert_eq!(cell.width(), cell_size);
+                assert_eq!(cell.height(), cell_size);
+                let shrunk = cell.shrink(2.0);
+                assert_eq!(shrunk.width(), cell_size - 4.0);
+            }
+        }
+    }
+
+    #[test]
+    fn test_subcube_to_color_mapping_pipeline() {
+        let config = Config::default();
+        let cube = BingoCube::from_seed(b"visual_cov", config).expect("cube");
+        let sub = cube.subcube(0.4).expect("subcube");
+        let size = cube.config.grid_size;
+        for i in 0..size {
+            for j in 0..size {
+                if sub.is_revealed(i, j) {
+                    let c = sub.get_color(i, j).expect("color when revealed");
+                    let mapped = BingoCubeVisualRenderer::color_index_to_color32(c);
+                    assert_ne!(mapped, Color32::TRANSPARENT);
+                }
+            }
+        }
     }
 }

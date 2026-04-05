@@ -312,6 +312,7 @@ impl Evolution {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::population::FitnessRecord;
     use rand::SeedableRng;
     use rand_chacha::ChaCha20Rng;
 
@@ -415,5 +416,112 @@ mod tests {
         }
 
         assert_eq!(pop.generation, 5);
+    }
+
+    #[test]
+    fn test_next_generation_random_when_no_fitness() {
+        let mut rng = ChaCha20Rng::seed_from_u64(7);
+        let mut pop = make_evaluated_pop(&mut rng);
+        pop.fitness.clear();
+
+        let evo_config = EvolutionConfig::default();
+        let next = Evolution::next_generation(&pop, &evo_config, &mut rng).unwrap();
+        assert_eq!(next.size(), pop.size());
+        // Empty fitness → ranked boards empty → `Population::random` (generation resets to 0).
+        assert_eq!(next.generation, 0);
+    }
+
+    #[test]
+    fn test_roulette_selection_path() {
+        let mut rng = ChaCha20Rng::seed_from_u64(11);
+        let mut pop = make_evaluated_pop(&mut rng);
+        // Total fitness 0 forces roulette_select's uniform fallback branch.
+        pop.fitness = (0..pop.boards.len())
+            .map(|i| FitnessRecord {
+                board_idx: i,
+                fitness: 0.0,
+                target_correlations: vec![0.0],
+            })
+            .collect();
+
+        let evo_config = EvolutionConfig {
+            selection: SelectionMethod::Roulette,
+            mutation_rate: 0.1,
+            column_crossover: true,
+            cell_crossover: false,
+        };
+
+        let next = Evolution::next_generation(&pop, &evo_config, &mut rng).unwrap();
+        assert_eq!(next.size(), pop.size());
+        assert_eq!(next.generation, pop.generation + 1);
+    }
+
+    #[test]
+    fn test_cell_crossover_with_duplicate_repair() {
+        let mut rng = ChaCha20Rng::seed_from_u64(99);
+        let pop = make_evaluated_pop(&mut rng);
+        let config = &pop.config;
+
+        let evo_config = EvolutionConfig {
+            selection: SelectionMethod::Tournament { tournament_size: 3 },
+            mutation_rate: 0.05,
+            column_crossover: false,
+            cell_crossover: true,
+        };
+
+        let next = Evolution::next_generation(&pop, &evo_config, &mut rng).unwrap();
+        let range_size = config.range_size();
+        for board in &next.boards {
+            for col in 0..config.grid_size {
+                let range_start = (col * range_size) as u32;
+                let range_end = range_start + range_size as u32;
+                for row in 0..config.grid_size {
+                    if let Some((fr, fc)) = config.free_cell {
+                        if row == fr && col == fc {
+                            assert!(board.get(row, col).is_none());
+                            continue;
+                        }
+                    }
+                    if let Some(val) = board.get(row, col) {
+                        assert!(val >= range_start && val < range_end);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_no_crossover_clones_primary_parent() {
+        let mut rng = ChaCha20Rng::seed_from_u64(123);
+        let pop = make_evaluated_pop(&mut rng);
+
+        let evo_config = EvolutionConfig {
+            selection: SelectionMethod::Elitism { survivors: 2 },
+            mutation_rate: 0.0,
+            column_crossover: false,
+            cell_crossover: false,
+        };
+
+        let next = Evolution::next_generation(&pop, &evo_config, &mut rng).unwrap();
+        assert_eq!(next.size(), pop.size());
+        assert_eq!(next.generation, pop.generation + 1);
+    }
+
+    #[test]
+    fn test_elitism_survivors_capped_by_population_size() {
+        let mut rng = ChaCha20Rng::seed_from_u64(55);
+        let pop = make_evaluated_pop(&mut rng);
+
+        let evo_config = EvolutionConfig {
+            selection: SelectionMethod::Elitism {
+                survivors: 1_000,
+            },
+            mutation_rate: 0.1,
+            column_crossover: true,
+            cell_crossover: false,
+        };
+
+        let next = Evolution::next_generation(&pop, &evo_config, &mut rng).unwrap();
+        assert_eq!(next.size(), pop.size());
     }
 }

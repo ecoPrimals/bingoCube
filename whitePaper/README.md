@@ -371,21 +371,21 @@ This whitepaper collection is a **living document**. Contributions welcome:
 ## License
 
 **Copyright**: ecoPrimals Team, 2025  
-**License**: TBD (pending ecosystem-wide license decision)
+**License**: AGPL-3.0-or-later
 
 ---
 
 ## Contact
 
-**Project**: petalTongue Universal Visualization System  
-**Repository**: `/home/eastgate/Development/ecoPrimals/phase2/petalTongue`  
-**Whitepaper Location**: `whitePaper/`
+**Project**: BingoCube (ecoPrimals ecosystem)  
+**petalTongue**: Universal visualization primal — see the ecoPrimals organization for repository links.  
+**Whitepaper location**: `whitePaper/` in this repository.
 
 For questions about BingoCube:
-1. Read this whitepaper collection
-2. Check `../STATUS.md` for implementation status
-3. See `../showcase/` for demos (when available)
-4. Contact the petalTongue maintainers
+1. Read this whitepaper collection.
+2. See **Implementation Status** (above in this document) for roadmap and component status.
+3. Open an issue or discussion on the [BingoCube repository](https://github.com/ecoPrimals/bingoCube).
+4. Contact the ecoPrimals maintainers as appropriate.
 
 ---
 

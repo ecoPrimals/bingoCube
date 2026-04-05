@@ -41,7 +41,9 @@ unused_self = "allow"
 bingocube-core.workspace = true
 serde.workspace = true
 thiserror.workspace = true
-petal-tongue-animation = { path = "../../petalTongue/crates/petal-tongue-animation", optional = true }
+# Animation uses the built-in engine in `src/animation.rs` (no path deps).
+# Optional: uncomment if you have a sibling petalTongue checkout and want to wire the upstream crate:
+# petal-tongue-animation = { path = "../../petalTongue/crates/petal-tongue-animation", optional = true }
 
 # Visual adapter dependencies (optional)
 egui = { workspace = true, optional = true }
@@ -53,7 +55,7 @@ egui = { workspace = true, optional = true }
 default = []
 visual = ["egui"]
 audio = []  # rodio when ALSA available
-animation = ["dep:petal-tongue-animation"]
+animation = []
 all = ["visual", "audio", "animation"]
 
 [dev-dependencies]
