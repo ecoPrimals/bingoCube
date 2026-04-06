@@ -745,7 +745,7 @@ mod tests {
         let json = serde_json::to_string(&record).unwrap();
         let back: GenerationRecord = serde_json::from_str(&json).unwrap();
         assert_eq!(back.generation, record.generation);
-        assert_eq!(back.ne_s, record.ne_s);
+        assert!((back.ne_s - record.ne_s).abs() < f64::EPSILON);
 
         let cfg = ShellConfig::default();
         let cfg_json = serde_json::to_string(&cfg).unwrap();
@@ -769,7 +769,7 @@ mod tests {
         assert!(pred[0].is_finite());
 
         let readout = LinearReadout::new(3, 2);
-        assert_eq!(export.quantization_mse(&readout, &[]), 0.0);
+        assert!(export.quantization_mse(&readout, &[]).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -784,6 +784,6 @@ mod tests {
         };
         let shell = NautilusShell::from_seed(config, id, 42);
         assert!(!shell.is_drifting());
-        assert_eq!(shell.latest_ne_s(), 0.0);
+        assert!(shell.latest_ne_s().abs() < f64::EPSILON);
     }
 }

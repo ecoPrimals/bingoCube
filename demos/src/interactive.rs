@@ -5,7 +5,8 @@ use bingocube_adapters::visual::BingoCubeVisualRenderer;
 use bingocube_core::{BingoCube, Config};
 
 /// `BingoCube` demo application
-pub struct BingoCubeDemo {
+#[allow(clippy::redundant_pub_crate)]
+pub(crate) struct BingoCubeDemo {
     /// Current `BingoCube`
     cube: BingoCube,
 
@@ -28,7 +29,8 @@ pub struct BingoCubeDemo {
 impl BingoCubeDemo {
     /// Create a new demo application
     #[must_use]
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    #[allow(clippy::redundant_pub_crate)]
+    pub(crate) fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         let config = Config::default();
         let seed_input = String::from("alice_identity");
         let cube = BingoCube::from_seed(seed_input.as_bytes(), config.clone())

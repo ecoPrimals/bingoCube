@@ -1,40 +1,84 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# cargo-deny configuration for bingoCube
+# https://embarkstudios.github.io/cargo-deny/
+
+[graph]
+targets = []
+all-features = true
+
 [advisories]
-vulnerability = "deny"
-unmaintained = "warn"
 yanked = "deny"
+ignore = [
+    # Transitive from eframe 0.29 → accesskit_windows → paste; awaiting egui 0.30 upgrade.
+    { id = "RUSTSEC-2024-0436", reason = "paste is transitive via eframe/egui; no direct usage" },
+]
 
 [licenses]
-unlicensed = "deny"
-copyleft = "allow"
 allow = [
-    "AGPL-3.0",
-    "AGPL-3.0+",
+    "MIT",
     "Apache-2.0",
     "Apache-2.0 WITH LLVM-exception",
     "BSD-2-Clause",
     "BSD-3-Clause",
-    "BSL-1.0",
-    "CC0-1.0",
     "ISC",
-    "MIT",
     "MPL-2.0",
-    "OpenSSL",
     "Unicode-3.0",
     "Unicode-DFS-2016",
     "Zlib",
+    "BSL-1.0",
+    "AGPL-3.0-or-later",
+    "CC0-1.0",
+    "OpenSSL",
+    "OFL-1.1",
 ]
+confidence-threshold = 0.8
+
+# epaint_default_fonts ships with UFL-1.0 (Ubuntu Font License) which is not a
+# standard SPDX identifier. It is an OSI-approved permissive font license.
+exceptions = [
+    { allow = ["LicenseRef-UFL-1.0"], crate = "epaint_default_fonts" },
+]
+
+[licenses.private]
+ignore = true
 
 [bans]
 multiple-versions = "warn"
+wildcards = "warn"
+highlight = "all"
+allow-wildcard-paths = true
+
+# ecoBin v3.0 compliance: C-backed crates banned from application builds.
+# blake3 uses cc as a build-dep for optional SIMD backends; bingoCube builds
+# with features = ["pure"] so no C code is compiled, but cc remains in the
+# resolved graph. wayland-backend and android-activity use cc for platform
+# native builds (transitive via eframe/egui GUI demo only).
+# pkg-config is a build-dep of wayland-sys (Linux GUI platform support).
 deny = [
-    # No C crypto — pure Rust only
-    { crate = "openssl-sys", use-instead = "rustls / RustCrypto" },
-    { crate = "ring", use-instead = "RustCrypto suite" },
-    { crate = "aws-lc-sys", use-instead = "RustCrypto suite" },
-    { crate = "aws-lc-rs", use-instead = "RustCrypto suite" },
+    { crate = "openssl-sys", wrappers = [] },
+    { crate = "openssl-src", wrappers = [] },
+    { crate = "native-tls", wrappers = [] },
+    { crate = "aws-lc-sys", wrappers = [] },
+    { crate = "aws-lc-rs", wrappers = [] },
+    { crate = "ring", wrappers = [] },
+    { crate = "cmake", wrappers = [] },
+    { crate = "cc", wrappers = ["blake3", "iana-time-zone-haiku", "wayland-backend", "android-activity"] },
+    { crate = "bindgen", wrappers = [] },
+    { crate = "bzip2-sys", wrappers = [] },
+    { crate = "curl-sys", wrappers = [] },
+    { crate = "libz-sys", wrappers = [] },
+    { crate = "pkg-config", wrappers = ["wayland-sys", "x11-dl"] },
+    { crate = "vcpkg", wrappers = [] },
+    { crate = "zstd-sys", wrappers = [] },
+    { crate = "lz4-sys", wrappers = [] },
+    { crate = "libsqlite3-sys", wrappers = [] },
+    { crate = "cryptoki-sys", wrappers = [] },
 ]
+
+skip = []
 
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

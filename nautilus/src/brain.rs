@@ -536,8 +536,10 @@ mod tests {
 
     #[test]
     fn test_predict_dynamical_requires_three_targets() {
-        let mut shell_cfg = ShellConfig::default();
-        shell_cfg.n_targets = 1;
+        let shell_cfg = ShellConfig {
+            n_targets: 1,
+            ..Default::default()
+        };
         let brain_cfg = NautilusBrainConfig {
             shell: shell_cfg,
             generations_per_cycle: 1,
