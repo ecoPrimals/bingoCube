@@ -1,5 +1,28 @@
-GNU AFFERO GENERAL PUBLIC LICENSE
-Version 3, 19 November 2007
+BingoCube — scyBorg Triple License
+Copyright (C) 2025 ecoPrimals Team
+
+This repository follows the ecoPrimals scyBorg triple license model:
+
+| Layer            | License              | Scope                                              |
+|------------------|----------------------|----------------------------------------------------|
+| Software (code)  | AGPL-3.0-or-later    | All Rust source, tools, tests, and build artifacts  |
+| Game mechanics   | ORC                  | BingoCube rules, stats, and progression systems    |
+| Creative & docs  | CC-BY-SA 4.0         | whitePaper/, specifications, diagrams, README docs |
+
+SPDX headers in source files identify the applicable license:
+- Rust (`.rs`): `SPDX-License-Identifier: AGPL-3.0-or-later`
+- Markdown docs: `SPDX-License-Identifier: CC-BY-SA-4.0`
+
+Full license texts:
+- AGPL-3.0: https://www.gnu.org/licenses/agpl-3.0.en.html (below)
+- ORC: https://www.opengamingfoundation.org/orc-license/
+- CC-BY-SA 4.0: https://creativecommons.org/licenses/by-sa/4.0/
+
+Attribution: retain copyright notices and link to https://github.com/ecoPrimals/bingoCube
+
+================================================================================
+SOFTWARE LICENSE — GNU AFFERO GENERAL PUBLIC LICENSE Version 3, 19 November 2007
+================================================================================
 
 Copyright (C) 2025 ecoPrimals Team
 
@@ -15,11 +38,6 @@ GNU Affero General Public License for more details.
 
 You should have received a copy of the GNU Affero General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
-
----
-
-For the complete license text, visit:
-https://www.gnu.org/licenses/agpl-3.0.en.html
 
 ---
 
@@ -50,4 +68,3 @@ Additional Terms:
 ecoPrimals Team
 https://github.com/ecoPrimals
 2025
-

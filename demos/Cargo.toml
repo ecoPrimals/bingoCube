@@ -10,6 +10,9 @@ authors.workspace = true
 [lints]
 workspace = true
 
+[lib]
+path = "src/lib.rs"
+
 [[bin]]
 name = "bingocube-demo"
 path = "src/main.rs"

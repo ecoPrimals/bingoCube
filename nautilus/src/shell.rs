@@ -15,6 +15,7 @@
 //! - Merged with shells from other instances
 //! - Inspected for evolutionary trajectory analysis
 
+use bingocube_core::BingoCubeError;
 use serde::{Deserialize, Serialize};
 
 use crate::constraints::DriftMonitor;
@@ -28,7 +29,7 @@ pub use crate::snapshot::{Akd1000Export, GenerationRecord, InstanceId, ShellConf
 ///
 /// ## Within an Instance
 ///
-/// Call [`evolve_generation`] repeatedly with training data. Each call:
+/// Call [`NautilusShell::evolve_generation`] repeatedly with training data. Each call:
 /// 1. Projects input through the current population
 /// 2. Trains the readout on ensemble responses
 /// 3. Evaluates board fitness
@@ -38,7 +39,7 @@ pub use crate::snapshot::{Akd1000Export, GenerationRecord, InstanceId, ShellConf
 /// ## Between Instances
 ///
 /// Serialize the shell with serde, ship it to another machine.
-/// The receiving instance calls [`continue_from`] or [`merge_shell`]
+/// The receiving instance calls [`NautilusShell::continue_from`] or [`NautilusShell::merge_shell`]
 /// to incorporate the inherited knowledge.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NautilusShell {
@@ -70,20 +71,19 @@ pub struct NautilusShell {
 
 impl NautilusShell {
     /// Create a new shell with a random population (Generation 0).
-    pub fn new(config: ShellConfig, instance_id: InstanceId) -> Self {
+    pub fn new(config: ShellConfig, instance_id: InstanceId) -> Result<Self, BingoCubeError> {
         let mut rng = rand::thread_rng();
         let pop = Population::random(
             config.board_config.clone(),
             config.population_size,
             &mut rng,
-        )
-        .expect("valid config");
+        )?;
 
         let response_dim = pop.response_dim();
         let readout =
             LinearReadout::new(response_dim, config.n_targets).with_ridge(config.ridge_lambda);
 
-        Self {
+        Ok(Self {
             config,
             current_population: pop,
             readout,
@@ -92,25 +92,28 @@ impl NautilusShell {
             lineage: vec![instance_id],
             drift_monitor: DriftMonitor::default(),
             concept_edges: Vec::new(),
-        }
+        })
     }
 
     /// Create a shell from an explicit seed (deterministic initialization).
-    pub fn from_seed(config: ShellConfig, instance_id: InstanceId, seed: u64) -> Self {
+    pub fn from_seed(
+        config: ShellConfig,
+        instance_id: InstanceId,
+        seed: u64,
+    ) -> Result<Self, BingoCubeError> {
         use rand::SeedableRng;
         let mut rng = rand_chacha::ChaCha20Rng::seed_from_u64(seed);
         let pop = Population::random(
             config.board_config.clone(),
             config.population_size,
             &mut rng,
-        )
-        .expect("valid config");
+        )?;
 
         let response_dim = pop.response_dim();
         let readout =
             LinearReadout::new(response_dim, config.n_targets).with_ridge(config.ridge_lambda);
 
-        Self {
+        Ok(Self {
             config,
             current_population: pop,
             readout,
@@ -119,7 +122,7 @@ impl NautilusShell {
             lineage: vec![instance_id],
             drift_monitor: DriftMonitor::default(),
             concept_edges: Vec::new(),
-        }
+        })
     }
 
     /// Current generation number.
@@ -137,7 +140,11 @@ impl NautilusShell {
     /// 7. Record the generation
     ///
     /// Returns the MSE of the readout after training.
-    pub fn evolve_generation(&mut self, inputs: &[ReservoirInput], targets: &[Vec<f64>]) -> f64 {
+    pub fn evolve_generation(
+        &mut self,
+        inputs: &[ReservoirInput],
+        targets: &[Vec<f64>],
+    ) -> Result<f64, BingoCubeError> {
         let mut rng = rand::thread_rng();
         crate::evolve::evolve_one_generation(self, inputs, targets, &mut rng)
     }
@@ -148,7 +155,7 @@ impl NautilusShell {
         inputs: &[ReservoirInput],
         targets: &[Vec<f64>],
         seed: u64,
-    ) -> f64 {
+    ) -> Result<f64, BingoCubeError> {
         use rand::SeedableRng;
         let mut rng = rand_chacha::ChaCha20Rng::seed_from_u64(seed);
         crate::evolve::evolve_one_generation(self, inputs, targets, &mut rng)
@@ -188,7 +195,7 @@ impl NautilusShell {
     ///
     /// Takes the best boards from both populations and combines them.
     /// The readout is retrained on the next `evolve_generation` call.
-    pub fn merge_shell(&mut self, other: &NautilusShell) {
+    pub fn merge_shell(&mut self, other: &NautilusShell) -> Result<(), BingoCubeError> {
         let my_ranked = self.current_population.ranked_boards();
         let other_ranked = other.current_population.ranked_boards();
 
@@ -211,8 +218,7 @@ impl NautilusShell {
         if merged_boards.len() < self.config.population_size {
             let mut rng = rand::thread_rng();
             while merged_boards.len() < self.config.population_size {
-                let board = bingocube_core::Board::generate(&self.config.board_config, &mut rng)
-                    .expect("valid config");
+                let board = bingocube_core::Board::generate(&self.config.board_config, &mut rng)?;
                 merged_boards.push(board);
             }
         }
@@ -236,6 +242,8 @@ impl NautilusShell {
             }
         }
         self.history.sort_by_key(|r| r.generation);
+
+        Ok(())
     }
 
     /// Fitness trajectory: (generation, mean_fitness, best_fitness) tuples.
@@ -339,7 +347,7 @@ impl NautilusShell {
     /// min-max scaling: w_q = round(w * scale), scale = 7 / max(|w|).
     ///
     /// Returns (quantized_weights, scales, biases) where:
-    /// - quantized_weights: [n_targets][input_dim] as i8 (int4 range)
+    /// - quantized_weights: \[n_targets\]\[input_dim\] as i8 (int4 range)
     /// - scales: per-target dequantization scale factors
     /// - biases: per-target bias values (kept in f64)
     pub fn export_akd1000_weights(&self) -> Akd1000Export {
@@ -402,7 +410,7 @@ mod tests {
     fn test_shell_creation() {
         let config = ShellConfig::default();
         let id = InstanceId::new("northgate");
-        let shell = NautilusShell::from_seed(config, id.clone(), 42);
+        let shell = NautilusShell::from_seed(config, id.clone(), 42).expect("valid config");
 
         assert_eq!(shell.generation(), 0);
         assert_eq!(shell.lineage_depth(), 1);
@@ -418,12 +426,14 @@ mod tests {
         };
 
         let id = InstanceId::new("homelab");
-        let mut shell = NautilusShell::from_seed(config, id, 42);
+        let mut shell = NautilusShell::from_seed(config, id, 42).expect("valid config");
         let (inputs, targets) = synthetic_dataset(50);
 
         let mut mse_history = Vec::new();
         for gen_idx in 0..10 {
-            let mse = shell.evolve_generation_seeded(&inputs, &targets, 100 + gen_idx);
+            let mse = shell
+                .evolve_generation_seeded(&inputs, &targets, 100 + gen_idx)
+                .expect("evolution should succeed");
             mse_history.push(mse);
         }
 
@@ -445,11 +455,13 @@ mod tests {
 
         // Instance A evolves for 5 generations
         let id_a = InstanceId::new("northgate");
-        let mut shell_a = NautilusShell::from_seed(config.clone(), id_a, 42);
+        let mut shell_a = NautilusShell::from_seed(config.clone(), id_a, 42).expect("valid config");
         let (inputs, targets) = synthetic_dataset(50);
 
         for gen_idx in 0..5 {
-            shell_a.evolve_generation_seeded(&inputs, &targets, 100 + gen_idx);
+            shell_a
+                .evolve_generation_seeded(&inputs, &targets, 100 + gen_idx)
+                .expect("evolution should succeed");
         }
         assert_eq!(shell_a.generation(), 5);
 
@@ -463,7 +475,9 @@ mod tests {
 
         // Instance B continues evolving
         for gen_idx in 0..5 {
-            shell_b.evolve_generation_seeded(&inputs, &targets, 200 + gen_idx);
+            shell_b
+                .evolve_generation_seeded(&inputs, &targets, 200 + gen_idx)
+                .expect("evolution should succeed");
         }
         assert_eq!(shell_b.generation(), 10);
     }
@@ -480,16 +494,22 @@ mod tests {
 
         // Two instances evolve independently
         let mut shell_a =
-            NautilusShell::from_seed(config.clone(), InstanceId::new("northgate"), 42);
-        let mut shell_b = NautilusShell::from_seed(config, InstanceId::new("strandgate"), 99);
+            NautilusShell::from_seed(config.clone(), InstanceId::new("northgate"), 42)
+                .expect("valid config");
+        let mut shell_b = NautilusShell::from_seed(config, InstanceId::new("strandgate"), 99)
+            .expect("valid config");
 
         for gen_idx in 0..5 {
-            shell_a.evolve_generation_seeded(&inputs, &targets, 100 + gen_idx);
-            shell_b.evolve_generation_seeded(&inputs, &targets, 200 + gen_idx);
+            shell_a
+                .evolve_generation_seeded(&inputs, &targets, 100 + gen_idx)
+                .expect("evolution should succeed");
+            shell_b
+                .evolve_generation_seeded(&inputs, &targets, 200 + gen_idx)
+                .expect("evolution should succeed");
         }
 
         // Merge B into A
-        shell_a.merge_shell(&shell_b);
+        shell_a.merge_shell(&shell_b).expect("merge should succeed");
 
         assert_eq!(shell_a.current_population.size(), 8);
         assert!(shell_a.lineage_depth() >= 2);
@@ -504,9 +524,11 @@ mod tests {
         };
 
         let id = InstanceId::new("homelab");
-        let mut shell = NautilusShell::from_seed(config, id, 42);
+        let mut shell = NautilusShell::from_seed(config, id, 42).expect("valid config");
         let (inputs, targets) = synthetic_dataset(20);
-        shell.evolve_generation_seeded(&inputs, &targets, 100);
+        shell
+            .evolve_generation_seeded(&inputs, &targets, 100)
+            .expect("evolution should succeed");
 
         // Serialize
         let json = serde_json::to_string(&shell).unwrap();
@@ -534,11 +556,13 @@ mod tests {
         };
 
         let id = InstanceId::new("driftlab");
-        let mut shell = NautilusShell::from_seed(config, id, 42);
+        let mut shell = NautilusShell::from_seed(config, id, 42).expect("valid config");
         let (inputs, targets) = synthetic_dataset(50);
 
         for gen_idx in 0..10 {
-            shell.evolve_generation_seeded(&inputs, &targets, 100 + gen_idx);
+            shell
+                .evolve_generation_seeded(&inputs, &targets, 100 + gen_idx)
+                .expect("evolution should succeed");
         }
 
         // Drift monitor should have 10 entries
@@ -563,18 +587,22 @@ mod tests {
         };
 
         let id = InstanceId::new("edgelab");
-        let mut shell = NautilusShell::from_seed(config, id, 42);
+        let mut shell = NautilusShell::from_seed(config, id, 42).expect("valid config");
         let (inputs, targets) = synthetic_dataset(50);
 
         // Evolve a few generations without edges
         for gen_idx in 0..3 {
-            shell.evolve_generation_seeded(&inputs, &targets, 100 + gen_idx);
+            shell
+                .evolve_generation_seeded(&inputs, &targets, 100 + gen_idx)
+                .expect("evolution should succeed");
         }
 
         // Set concept edges and evolve more
         shell.set_concept_edges(vec![vec![0.85, 0.3, 0.5]]);
         for gen_idx in 3..8 {
-            shell.evolve_generation_seeded(&inputs, &targets, 100 + gen_idx);
+            shell
+                .evolve_generation_seeded(&inputs, &targets, 100 + gen_idx)
+                .expect("evolution should succeed");
         }
 
         assert_eq!(shell.generation(), 8);
@@ -590,12 +618,14 @@ mod tests {
         };
 
         let id = InstanceId::new("akd_lab");
-        let mut shell = NautilusShell::from_seed(config, id, 42);
+        let mut shell = NautilusShell::from_seed(config, id, 42).expect("valid config");
         let (inputs, targets_1) = synthetic_dataset(30);
         let targets_2: Vec<Vec<f64>> = targets_1.iter().map(|t| vec![t[0], t[0] * 2.0]).collect();
 
         for gen_idx in 0..5 {
-            shell.evolve_generation_seeded(&inputs, &targets_2, 100 + gen_idx);
+            shell
+                .evolve_generation_seeded(&inputs, &targets_2, 100 + gen_idx)
+                .expect("evolution should succeed");
         }
 
         let export = shell.export_akd1000_weights();
@@ -635,7 +665,7 @@ mod tests {
         };
 
         let id = InstanceId::new("concept_lab");
-        let mut shell = NautilusShell::from_seed(config, id, 42);
+        let mut shell = NautilusShell::from_seed(config, id, 42).expect("valid config");
 
         // Create data with a discontinuity at x=0.5
         let n = 40;
@@ -653,7 +683,9 @@ mod tests {
             .collect();
 
         for gen_idx in 0..5 {
-            shell.evolve_generation_seeded(&inputs, &targets, 100 + gen_idx);
+            shell
+                .evolve_generation_seeded(&inputs, &targets, 100 + gen_idx)
+                .expect("evolution should succeed");
         }
 
         let edges = shell.detect_concept_edges(&inputs, &targets, 2.0);
@@ -688,9 +720,12 @@ mod tests {
             n_targets: 1,
             ..Default::default()
         };
-        let mut shell = NautilusShell::new(config, InstanceId::new("rng-shell"));
+        let mut shell =
+            NautilusShell::new(config, InstanceId::new("rng-shell")).expect("valid config");
         let (inputs, targets) = synthetic_dataset(12);
-        let mse = shell.evolve_generation(&inputs, &targets);
+        let mse = shell
+            .evolve_generation(&inputs, &targets)
+            .expect("evolution should succeed");
         assert!(mse.is_finite());
         assert_eq!(shell.generation(), 1);
     }
@@ -703,7 +738,7 @@ mod tests {
             ..Default::default()
         };
         let id = InstanceId::new("same-node");
-        let shell = NautilusShell::from_seed(config, id.clone(), 1);
+        let shell = NautilusShell::from_seed(config, id.clone(), 1).expect("valid config");
         let depth_before = shell.lineage_depth();
         let continued = NautilusShell::continue_from(shell, id.clone());
         assert_eq!(continued.lineage_depth(), depth_before);
@@ -717,9 +752,12 @@ mod tests {
             n_targets: 1,
             ..Default::default()
         };
-        let mut shell = NautilusShell::from_seed(config, InstanceId::new("short"), 42);
+        let mut shell =
+            NautilusShell::from_seed(config, InstanceId::new("short"), 42).expect("valid config");
         let (inputs, targets) = synthetic_dataset(20);
-        shell.evolve_generation_seeded(&inputs, &targets, 1);
+        shell
+            .evolve_generation_seeded(&inputs, &targets, 1)
+            .expect("evolution should succeed");
 
         let tiny_in = inputs.iter().take(2).cloned().collect::<Vec<_>>();
         let tiny_t = targets.iter().take(2).cloned().collect::<Vec<_>>();
@@ -782,7 +820,7 @@ mod tests {
             n_targets: 1,
             ..Default::default()
         };
-        let shell = NautilusShell::from_seed(config, id, 42);
+        let shell = NautilusShell::from_seed(config, id, 42).expect("valid config");
         assert!(!shell.is_drifting());
         assert!(shell.latest_ne_s().abs() < f64::EPSILON);
     }

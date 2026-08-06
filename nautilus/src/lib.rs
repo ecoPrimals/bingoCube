@@ -23,7 +23,7 @@
 //! ## Within an Instance
 //!
 //! A single [`NautilusShell`] evolves its [`Population`] of boards through
-//! [`Generation`]s. At each generation:
+//! `Generation`s. At each generation:
 //!
 //! 1. Input data streams through all boards (each board is a random projection)
 //! 2. The [`LinearReadout`] extracts predictions from the ensemble response

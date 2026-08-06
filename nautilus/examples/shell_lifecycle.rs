@@ -36,7 +36,8 @@ fn main() {
     };
 
     let homelab_id = InstanceId::new("homelab-northgate");
-    let mut homelab_shell = NautilusShell::from_seed(config.clone(), homelab_id, 42);
+    let mut homelab_shell =
+        NautilusShell::from_seed(config.clone(), homelab_id, 42).expect("shell init");
 
     println!("  Instance: {}", homelab_shell.origin.0);
     println!(
@@ -68,7 +69,9 @@ fn main() {
     println!("  {:─>4}  {:─>10}  {:─>10}  {:─>10}", "", "", "", "");
 
     for gen_idx in 0..20 {
-        let mse = homelab_shell.evolve_generation_seeded(&inputs, &targets, 100 + gen_idx);
+        let mse = homelab_shell
+            .evolve_generation_seeded(&inputs, &targets, 100 + gen_idx)
+            .expect("evolve");
         let traj = homelab_shell.fitness_trajectory();
         let last = traj.last().unwrap();
         if gen_idx % 2 == 0 || gen_idx == 19 {
@@ -143,8 +146,9 @@ fn main() {
     println!("  {:─>4}  {:─>10}  {:─>10}  {:─>10}", "", "", "", "");
 
     for gen_idx in 0..10 {
-        let mse =
-            field_shell.evolve_generation_seeded(&field_inputs, &field_targets, 300 + gen_idx);
+        let mse = field_shell
+            .evolve_generation_seeded(&field_inputs, &field_targets, 300 + gen_idx)
+            .expect("evolve");
         let traj = field_shell.fitness_trajectory();
         let last = traj.last().unwrap();
         if gen_idx % 2 == 0 || gen_idx == 9 {
@@ -174,7 +178,7 @@ fn main() {
         field_received.current_population.size()
     );
 
-    homelab_shell.merge_shell(&field_received);
+    homelab_shell.merge_shell(&field_received).expect("merge");
 
     println!("  After merge:");
     println!(
@@ -201,7 +205,9 @@ fn main() {
     println!("  {:─>4}  {:─>10}  {:─>10}  {:─>10}", "", "", "", "");
 
     for gen_idx in 0..5 {
-        let mse = homelab_shell.evolve_generation_seeded(&inputs, &targets, 400 + gen_idx);
+        let mse = homelab_shell
+            .evolve_generation_seeded(&inputs, &targets, 400 + gen_idx)
+            .expect("evolve");
         let traj = homelab_shell.fitness_trajectory();
         let last = traj.last().unwrap();
         println!(

@@ -265,9 +265,18 @@ impl BingoCube {
     pub fn from_seed(seed: &[u8], config: Config) -> Result<Self, BingoCubeError> {
         config.validate()?;
 
-        // Derive two seeds from input seed
-        let seed_a = blake3::hash(&[seed, b"_BOARD_A"].concat());
-        let seed_b = blake3::hash(&[seed, b"_BOARD_B"].concat());
+        let seed_a = {
+            let mut h = blake3::Hasher::new();
+            h.update(seed);
+            h.update(b"_BOARD_A");
+            h.finalize()
+        };
+        let seed_b = {
+            let mut h = blake3::Hasher::new();
+            h.update(seed);
+            h.update(b"_BOARD_B");
+            h.finalize()
+        };
 
         let mut rng_a = ChaCha20Rng::from_seed(*seed_a.as_bytes());
         let mut rng_b = ChaCha20Rng::from_seed(*seed_b.as_bytes());
@@ -322,37 +331,33 @@ impl BingoCube {
         })
     }
 
-    /// Compute scalar value for cell (i, j)
+    /// Compute scalar value for cell (i, j) using incremental hashing (zero allocation).
     fn compute_scalar(i: usize, j: usize, board_a: &Board, board_b: &Board) -> Scalar {
-        // Build input: "BINGOCUBE_V1" || i || j || A[i,j] || B[i,j]
-        let mut input = Vec::new();
-        input.extend_from_slice(b"BINGOCUBE_V1");
-        input.extend_from_slice(&i.to_le_bytes());
-        input.extend_from_slice(&j.to_le_bytes());
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(b"BINGOCUBE_V1");
+        hasher.update(&i.to_le_bytes());
+        hasher.update(&j.to_le_bytes());
 
-        // Add A[i,j] value (or marker for None)
         match board_a.get(i, j) {
-            Some(val) => input.extend_from_slice(&val.to_le_bytes()),
-            None => input.extend_from_slice(b"FREE_CELL_A"),
-        }
+            Some(val) => hasher.update(&val.to_le_bytes()),
+            None => hasher.update(b"FREE_CELL_A"),
+        };
 
-        // Add B[i,j] value (or marker for None)
         match board_b.get(i, j) {
-            Some(val) => input.extend_from_slice(&val.to_le_bytes()),
-            None => input.extend_from_slice(b"FREE_CELL_B"),
-        }
+            Some(val) => hasher.update(&val.to_le_bytes()),
+            None => hasher.update(b"FREE_CELL_B"),
+        };
 
-        // Hash and interpret as u64
-        let hash = blake3::hash(&input);
+        let hash = hasher.finalize();
         let bytes = hash.as_bytes();
         u64::from_le_bytes([
             bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
         ])
     }
 
-    /// Get the full color grid
+    /// Get the full color grid.
     #[must_use]
-    pub const fn color_grid(&self) -> &Vec<Vec<Color>> {
+    pub fn color_grid(&self) -> &[Vec<Color>] {
         &self.color_grid
     }
 

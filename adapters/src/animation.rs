@@ -11,6 +11,55 @@
 use bingocube_core::BingoCube;
 use std::time::Duration;
 
+/// Animation timing and effect configuration.
+#[derive(Debug, Clone, Copy)]
+pub struct AnimationConfig {
+    /// Initial reveal level.
+    pub initial_reveal: f64,
+    /// Default target reveal level.
+    pub default_target_reveal: f64,
+    /// Default animation speed (x units per second).
+    pub default_animation_speed: f32,
+    /// Minimum allowed animation speed.
+    pub min_animation_speed: f32,
+    /// Particle speed multiplier (reserved).
+    pub particle_speed: f32,
+    /// Base alpha during pulse (0.0–1.0).
+    pub pulse_alpha_base: f32,
+    /// Additional alpha scaled by pulse intensity.
+    pub pulse_alpha_scale: f32,
+}
+
+impl Default for AnimationConfig {
+    fn default() -> Self {
+        Self {
+            initial_reveal: 0.0,
+            default_target_reveal: 1.0,
+            default_animation_speed: 0.1,
+            min_animation_speed: 0.01,
+            particle_speed: 0.5,
+            pulse_alpha_base: 0.3,
+            pulse_alpha_scale: 0.7,
+        }
+    }
+}
+
+impl AnimationConfig {
+    /// Set default animation speed (builder pattern).
+    #[must_use]
+    pub fn with_animation_speed(mut self, speed: f32) -> Self {
+        self.default_animation_speed = speed.max(self.min_animation_speed);
+        self
+    }
+
+    /// Set default target reveal level (builder pattern).
+    #[must_use]
+    pub fn with_target_reveal(mut self, target: f64) -> Self {
+        self.default_target_reveal = target.clamp(0.0, 1.0);
+        self
+    }
+}
+
 /// Minimal engine for progressive-reveal pulses and edge slots (standalone; no path deps).
 #[derive(Debug, Default)]
 pub struct AnimationEngine {
@@ -58,6 +107,7 @@ pub struct BingoCubeAnimationController {
     /// Reserved for future render integration (pulse/particle wiring).
     #[expect(dead_code, reason = "reserved for future animation integration")]
     bingocube: BingoCube,
+    config: AnimationConfig,
     /// The animation engine
     animation_engine: AnimationEngine,
     /// Current x parameter for reveal
@@ -68,9 +118,6 @@ pub struct BingoCubeAnimationController {
     animation_speed: f32,
     /// Whether to animate progressive reveal
     animate_reveal: bool,
-    /// Particle speed multiplier (reserved).
-    #[expect(dead_code, reason = "reserved for future particle tuning")]
-    particle_speed: f32,
     /// Whether particles are enabled
     particles_enabled: bool,
     /// Whether pulses are enabled
@@ -81,17 +128,29 @@ impl BingoCubeAnimationController {
     /// Creates a new animation controller
     #[must_use]
     pub fn new(bingocube: BingoCube) -> Self {
+        Self::with_config(bingocube, AnimationConfig::default())
+    }
+
+    /// Creates a new animation controller with custom configuration (builder pattern).
+    #[must_use]
+    pub fn with_config(bingocube: BingoCube, config: AnimationConfig) -> Self {
         Self {
             bingocube,
+            config,
             animation_engine: AnimationEngine::new(),
-            current_x: 0.0,
-            target_x: 1.0,
-            animation_speed: 0.1,
+            current_x: config.initial_reveal,
+            target_x: config.default_target_reveal,
+            animation_speed: config.default_animation_speed,
             animate_reveal: false,
-            particle_speed: 0.5,
             particles_enabled: true,
             pulses_enabled: true,
         }
+    }
+
+    /// Returns a reference to the animation configuration.
+    #[must_use]
+    pub fn config(&self) -> &AnimationConfig {
+        &self.config
     }
 
     /// Sets the target reveal level (will animate smoothly to this value)
@@ -115,7 +174,7 @@ impl BingoCubeAnimationController {
 
     /// Sets the animation speed
     pub fn set_animation_speed(&mut self, speed: f32) {
-        self.animation_speed = speed.max(0.01);
+        self.animation_speed = speed.max(self.config.min_animation_speed);
     }
 
     /// Sets whether particles are enabled
@@ -201,7 +260,7 @@ impl BingoCubeAnimationController {
             pulse_intensity,
             has_incoming_particle: false, // Simplified for now
             alpha: if pulse_intensity > 0.0 {
-                0.3 + pulse_intensity * 0.7 // Brighten during pulse
+                self.config.pulse_alpha_base + pulse_intensity * self.config.pulse_alpha_scale
             } else {
                 1.0
             },

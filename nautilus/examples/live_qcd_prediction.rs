@@ -143,7 +143,7 @@ fn main() {
     };
 
     let instance = InstanceId::new("hotspring-northgate");
-    let mut shell = NautilusShell::from_seed(config, instance, 42);
+    let mut shell = NautilusShell::from_seed(config, instance, 42).expect("shell init");
 
     println!("  Nautilus Shell initialized:");
     println!(
@@ -173,7 +173,9 @@ fn main() {
     println!("  {:─>4}  {:─>10}  {:─>10}  {:─>10}", "", "", "", "");
 
     for gen_idx in 0..n_generations {
-        let mse = shell.evolve_generation_seeded(&inputs, &targets, 1000 + gen_idx);
+        let mse = shell
+            .evolve_generation_seeded(&inputs, &targets, 1000 + gen_idx)
+            .expect("evolve");
         let traj = shell.fitness_trajectory();
         let last = traj.last().unwrap();
         if gen_idx % 5 == 0 || gen_idx == n_generations - 1 {
@@ -276,10 +278,13 @@ fn main() {
 
         let loo_instance = InstanceId::new("loo-validator");
         let mut loo_shell =
-            NautilusShell::from_seed(loo_config, loo_instance, 42 + hold_out as u64);
+            NautilusShell::from_seed(loo_config, loo_instance, 42 + hold_out as u64)
+                .expect("shell init");
 
         for gen_idx in 0..20 {
-            loo_shell.evolve_generation_seeded(&train_inputs, &train_targets, 2000 + gen_idx);
+            loo_shell
+                .evolve_generation_seeded(&train_inputs, &train_targets, 2000 + gen_idx)
+                .expect("evolve");
         }
 
         let pred = loo_shell.predict(&inputs[hold_out]);

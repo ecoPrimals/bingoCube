@@ -68,14 +68,16 @@ fn main() {
     };
 
     let id = InstanceId::new("biomegate-rtx3090");
-    let mut shell = NautilusShell::from_seed(config, id, 42);
+    let mut shell = NautilusShell::from_seed(config, id, 42).expect("shell init");
     let (inputs, targets) = qcd_phase_data(30);
 
     println!("  Training data: {} beta points (β=4.0..7.0)", inputs.len());
     println!("  Targets: plaquette + CG cost\n");
 
     for gen_idx in 0..15 {
-        let mse = shell.evolve_generation_seeded(&inputs, &targets, 1000 + gen_idx);
+        let mse = shell
+            .evolve_generation_seeded(&inputs, &targets, 1000 + gen_idx)
+            .expect("evolve");
         let ne_s = shell.latest_ne_s();
         let drifting = if shell.is_drifting() {
             " ⚠ DRIFT"
@@ -144,7 +146,9 @@ fn main() {
     }
 
     for gen_idx in 0..10 {
-        let mse = shell.evolve_generation_seeded(&inputs, &targets, 2000 + gen_idx);
+        let mse = shell
+            .evolve_generation_seeded(&inputs, &targets, 2000 + gen_idx)
+            .expect("evolve");
         if gen_idx % 3 == 0 {
             println!(
                 "  Edge-seeded Gen {:>2}: MSE={:.6}  N_e·s={:.2}",
@@ -324,13 +328,15 @@ fn main() {
     // Field node evolves on slightly different data (different seed range)
     let (field_inputs, field_targets) = qcd_phase_data(25);
     for gen_idx in 0..5 {
-        field_shell.evolve_generation_seeded(&field_inputs, &field_targets, 3000 + gen_idx);
+        field_shell
+            .evolve_generation_seeded(&field_inputs, &field_targets, 3000 + gen_idx)
+            .expect("evolve");
     }
     println!("  Field node evolved {} more generations", 5);
 
     // Merge field knowledge back into original
     let mut merged = shell.clone();
-    merged.merge_shell(&field_shell);
+    merged.merge_shell(&field_shell).expect("merge");
     println!(
         "  Merged: lineage={} history={}",
         merged.lineage_depth(),
@@ -339,7 +345,9 @@ fn main() {
 
     // Evolve merged shell
     for gen_idx in 0..3 {
-        merged.evolve_generation_seeded(&inputs, &targets, 4000 + gen_idx);
+        merged
+            .evolve_generation_seeded(&inputs, &targets, 4000 + gen_idx)
+            .expect("evolve");
     }
     let merged_mse = {
         let r: Vec<ResponseVector> = inputs

@@ -7,6 +7,46 @@
 use bingocube_core::{BingoCube, Color};
 use std::collections::HashMap;
 
+/// Audio sonification configuration.
+#[derive(Debug, Clone, Copy)]
+pub struct AudioConfig {
+    /// Base MIDI note for pitch mapping (default: middle C).
+    pub base_note: u8,
+    /// Master volume multiplier (0.0–1.0).
+    pub master_volume: f32,
+    /// Minimum cell duration in milliseconds.
+    pub min_duration_ms: u32,
+    /// Maximum additional duration in milliseconds (added to minimum).
+    pub max_duration_extra_ms: u32,
+}
+
+impl Default for AudioConfig {
+    fn default() -> Self {
+        Self {
+            base_note: 60,
+            master_volume: 0.7,
+            min_duration_ms: 100,
+            max_duration_extra_ms: 400,
+        }
+    }
+}
+
+impl AudioConfig {
+    /// Set base MIDI note (builder pattern).
+    #[must_use]
+    pub fn with_base_note(mut self, note: u8) -> Self {
+        self.base_note = note;
+        self
+    }
+
+    /// Set master volume (builder pattern).
+    #[must_use]
+    pub fn with_master_volume(mut self, volume: f32) -> Self {
+        self.master_volume = volume.clamp(0.0, 1.0);
+        self
+    }
+}
+
 /// Audio attributes for a BingoCube cell
 #[derive(Debug, Clone, PartialEq)]
 pub struct CellAudio {
@@ -42,35 +82,43 @@ pub enum Instrument {
 pub struct BingoCubeAudioRenderer {
     /// The BingoCube to sonify
     bingocube: BingoCube,
-    /// Master volume (0.0 to 1.0)
-    master_volume: f32,
+    config: AudioConfig,
     /// Whether audio is enabled
     enabled: bool,
-    /// Base MIDI note for the grid
-    base_note: u8,
 }
 
 impl BingoCubeAudioRenderer {
     /// Creates a new audio renderer
     #[must_use]
     pub fn new(bingocube: BingoCube) -> Self {
+        Self::with_config(bingocube, AudioConfig::default())
+    }
+
+    /// Creates a new audio renderer with custom configuration (builder pattern).
+    #[must_use]
+    pub fn with_config(bingocube: BingoCube, config: AudioConfig) -> Self {
         Self {
             bingocube,
-            master_volume: 0.7,
+            config,
             enabled: true,
-            base_note: 60, // Middle C
         }
+    }
+
+    /// Returns a reference to the audio configuration.
+    #[must_use]
+    pub fn config(&self) -> &AudioConfig {
+        &self.config
     }
 
     /// Sets the master volume
     pub fn set_master_volume(&mut self, volume: f32) {
-        self.master_volume = volume.clamp(0.0, 1.0);
+        self.config.master_volume = volume.clamp(0.0, 1.0);
     }
 
     /// Gets the master volume
     #[must_use]
     pub fn master_volume(&self) -> f32 {
-        self.master_volume
+        self.config.master_volume
     }
 
     /// Sets whether audio is enabled
@@ -113,21 +161,20 @@ impl BingoCubeAudioRenderer {
         // Pitch: base note + octave (row) + color offset
         let octave_offset = (row as i16 - grid_size as i16 / 2) * 12 / grid_size as i16;
         let color_offset = Self::color_to_pitch_offset(color);
-        let pitch = (i16::from(self.base_note) + octave_offset + i16::from(color_offset))
+        let pitch = (i16::from(self.config.base_note) + octave_offset + i16::from(color_offset))
             .clamp(0, 127) as u8;
 
-        // Volume: louder in center, quieter at edges
         let center_distance = ((row as f32 - grid_size as f32 / 2.0).powi(2)
             + (col as f32 - grid_size as f32 / 2.0).powi(2))
         .sqrt();
-        let max_distance = (grid_size as f32 / 2.0) * 1.414; // Diagonal
-        let volume = (1.0 - center_distance / max_distance) * self.master_volume;
+        let max_distance = (grid_size as f32 / 2.0) * 1.414;
+        let volume = (1.0 - center_distance / max_distance) * self.config.master_volume;
 
-        // Pan: left to right based on column
         let pan = (col as f32 / (grid_size as f32 - 1.0)) * 2.0 - 1.0;
 
-        // Duration: longer for center cells
-        let duration_ms = (100.0 + (1.0 - center_distance / max_distance) * 400.0) as u32;
+        let duration_ms = (self.config.min_duration_ms as f32
+            + (1.0 - center_distance / max_distance) * self.config.max_duration_extra_ms as f32)
+            as u32;
 
         CellAudio {
             instrument,

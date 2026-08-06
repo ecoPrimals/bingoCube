@@ -7,8 +7,85 @@
 use bingocube_core::{BingoCube, Color};
 use egui::{Color32, Rect, Response, Sense, Ui, Vec2};
 
+/// Default 16-color perceptually distinct palette.
+#[must_use]
+pub fn default_palette() -> [Color32; 16] {
+    [
+        Color32::from_rgb(100, 149, 237),
+        Color32::from_rgb(60, 179, 113),
+        Color32::from_rgb(255, 215, 0),
+        Color32::from_rgb(220, 20, 60),
+        Color32::from_rgb(138, 43, 226),
+        Color32::from_rgb(255, 140, 0),
+        Color32::from_rgb(46, 139, 87),
+        Color32::from_rgb(199, 21, 133),
+        Color32::from_rgb(0, 191, 255),
+        Color32::from_rgb(154, 205, 50),
+        Color32::from_rgb(255, 105, 180),
+        Color32::from_rgb(64, 224, 208),
+        Color32::from_rgb(255, 69, 0),
+        Color32::from_rgb(186, 85, 211),
+        Color32::from_rgb(50, 205, 50),
+        Color32::from_rgb(255, 20, 147),
+    ]
+}
+
+/// Visual rendering configuration.
+#[derive(Debug, Clone)]
+pub struct VisualConfig {
+    /// Pixel size of each grid cell.
+    pub cell_size: f32,
+    /// Color palette indexed by `color % palette.len()`.
+    pub palette: [Color32; 16],
+    /// Fill color for unrevealed cells.
+    pub unrevealed_cell_color: Color32,
+    /// Grid line stroke color.
+    pub grid_line_color: Color32,
+    /// Grid line stroke width.
+    pub grid_line_width: f32,
+    /// Corner radius for cell fills and strokes.
+    pub cell_corner_radius: f32,
+    /// Inset applied before drawing each cell.
+    pub cell_shrink: f32,
+    /// Font size when `show_values` is enabled.
+    pub value_font_size: f32,
+}
+
+impl Default for VisualConfig {
+    fn default() -> Self {
+        Self {
+            cell_size: 60.0,
+            palette: default_palette(),
+            unrevealed_cell_color: Color32::from_rgb(30, 30, 35),
+            grid_line_color: Color32::from_rgb(60, 60, 65),
+            grid_line_width: 1.0,
+            cell_corner_radius: 4.0,
+            cell_shrink: 2.0,
+            value_font_size: 10.0,
+        }
+    }
+}
+
+impl VisualConfig {
+    /// Set cell size in pixels (builder pattern).
+    #[must_use]
+    pub fn with_cell_size(mut self, size: f32) -> Self {
+        self.cell_size = size.max(1.0);
+        self
+    }
+
+    /// Replace the color palette (builder pattern).
+    #[must_use]
+    pub fn with_palette(mut self, palette: [Color32; 16]) -> Self {
+        self.palette = palette;
+        self
+    }
+}
+
 /// Visual renderer for BingoCube
 pub struct BingoCubeVisualRenderer {
+    config: VisualConfig,
+
     /// Current reveal parameter (0.0-1.0)
     pub reveal_x: f64,
 
@@ -38,7 +115,14 @@ impl BingoCubeVisualRenderer {
     /// Create a new `BingoCubeVisualRenderer`
     #[must_use]
     pub fn new() -> Self {
+        Self::with_config(VisualConfig::default())
+    }
+
+    /// Create a renderer with custom visual configuration (builder pattern).
+    #[must_use]
+    pub fn with_config(config: VisualConfig) -> Self {
         Self {
+            config,
             reveal_x: 1.0,
             animate_reveal: false,
             target_reveal: None,
@@ -46,6 +130,12 @@ impl BingoCubeVisualRenderer {
             show_grid_lines: true,
             show_values: false,
         }
+    }
+
+    /// Returns a reference to the visual configuration.
+    #[must_use]
+    pub fn config(&self) -> &VisualConfig {
+        &self.config
     }
 
     /// Create a new renderer with a specific reveal level (builder pattern)
@@ -141,49 +231,48 @@ impl BingoCubeVisualRenderer {
             self.reveal_x = self.reveal_x.clamp(0.0, 1.0);
         }
 
-        // Get subcube at current reveal level
         let subcube = cube
             .subcube(self.reveal_x)
-            .unwrap_or_else(|_| cube.subcube(1.0).expect("fallback to full reveal"));
+            .map_or_else(|_| cube.subcube(1.0).ok(), Some);
 
-        // Calculate size
+        let Some(subcube) = subcube else {
+            let (response, _painter) = ui.allocate_painter(Vec2::ZERO, Sense::hover());
+            return response;
+        };
+
         let size = cube.config.grid_size;
-        let cell_size = 60.0;
+        let cell_size = self.config.cell_size;
         let grid_size = Vec2::splat(cell_size * size as f32);
 
-        // Allocate space
         let (response, painter) = ui.allocate_painter(grid_size, Sense::hover());
         let rect = response.rect;
 
-        // Draw cells
         for i in 0..size {
             for j in 0..size {
                 let cell_rect = Rect::from_min_size(
                     rect.min + Vec2::new(j as f32 * cell_size, i as f32 * cell_size),
                     Vec2::splat(cell_size),
                 );
+                let draw_rect = cell_rect.shrink(self.config.cell_shrink);
+                let corner = self.config.cell_corner_radius;
 
                 if subcube.is_revealed(i, j) {
-                    // Draw revealed cell
                     if let Some(color) = subcube.get_color(i, j) {
-                        let cell_color = Self::color_index_to_color32(color);
-                        painter.rect_filled(cell_rect.shrink(2.0), 4.0, cell_color);
+                        let cell_color = self.color_index_to_color32(color);
+                        painter.rect_filled(draw_rect, corner, cell_color);
                     }
                 } else {
-                    // Draw unrevealed cell (dark gray)
-                    painter.rect_filled(cell_rect.shrink(2.0), 4.0, Color32::from_rgb(30, 30, 35));
+                    painter.rect_filled(draw_rect, corner, self.config.unrevealed_cell_color);
                 }
 
-                // Draw grid lines
                 if self.show_grid_lines {
                     painter.rect_stroke(
-                        cell_rect.shrink(2.0),
-                        4.0,
-                        (1.0, Color32::from_rgb(60, 60, 65)),
+                        draw_rect,
+                        corner,
+                        (self.config.grid_line_width, self.config.grid_line_color),
                     );
                 }
 
-                // Draw values (for debugging)
                 if self.show_values {
                     if let Some(color) = cube.get_color(i, j) {
                         let text = format!("{color}");
@@ -191,7 +280,7 @@ impl BingoCubeVisualRenderer {
                             cell_rect.center(),
                             egui::Align2::CENTER_CENTER,
                             text,
-                            egui::FontId::monospace(10.0),
+                            egui::FontId::monospace(self.config.value_font_size),
                             Color32::WHITE,
                         );
                     }
@@ -217,28 +306,9 @@ impl BingoCubeVisualRenderer {
         self
     }
 
-    /// Convert color index to `Color32` using a 16-color palette
-    fn color_index_to_color32(color: Color) -> Color32 {
-        // Use a perceptually distinct 16-color palette
-        match color % 16 {
-            0 => Color32::from_rgb(100, 149, 237),  // Cornflower Blue
-            1 => Color32::from_rgb(60, 179, 113),   // Medium Sea Green
-            2 => Color32::from_rgb(255, 215, 0),    // Gold
-            3 => Color32::from_rgb(220, 20, 60),    // Crimson
-            4 => Color32::from_rgb(138, 43, 226),   // Blue Violet
-            5 => Color32::from_rgb(255, 140, 0),    // Dark Orange
-            6 => Color32::from_rgb(46, 139, 87),    // Sea Green
-            7 => Color32::from_rgb(199, 21, 133),   // Medium Violet Red
-            8 => Color32::from_rgb(0, 191, 255),    // Deep Sky Blue
-            9 => Color32::from_rgb(154, 205, 50),   // Yellow Green
-            10 => Color32::from_rgb(255, 105, 180), // Hot Pink
-            11 => Color32::from_rgb(64, 224, 208),  // Turquoise
-            12 => Color32::from_rgb(255, 69, 0),    // Orange Red
-            13 => Color32::from_rgb(186, 85, 211),  // Medium Orchid
-            14 => Color32::from_rgb(50, 205, 50),   // Lime Green
-            15 => Color32::from_rgb(255, 20, 147),  // Deep Pink
-            _ => Color32::GRAY,
-        }
+    fn color_index_to_color32(&self, color: Color) -> Color32 {
+        let index = (color as usize) % self.config.palette.len();
+        self.config.palette[index]
     }
 }
 
@@ -289,34 +359,46 @@ mod tests {
 
     #[test]
     fn test_color_mapping() {
-        // Test that color mapping is deterministic
-        let color1 = BingoCubeVisualRenderer::color_index_to_color32(0);
-        let color2 = BingoCubeVisualRenderer::color_index_to_color32(0);
+        let renderer = BingoCubeVisualRenderer::new();
+        let color1 = renderer.color_index_to_color32(0);
+        let color2 = renderer.color_index_to_color32(0);
         assert_eq!(color1, color2);
 
-        // Test that different indices produce different colors
-        let color_a = BingoCubeVisualRenderer::color_index_to_color32(0);
-        let color_b = BingoCubeVisualRenderer::color_index_to_color32(1);
+        let color_a = renderer.color_index_to_color32(0);
+        let color_b = renderer.color_index_to_color32(1);
         assert_ne!(color_a, color_b);
     }
 
     #[test]
     fn test_color_palette_modulo_and_distinctness() {
-        // Indices wrap modulo 16 (palette slots).
+        let renderer = BingoCubeVisualRenderer::new();
         assert_eq!(
-            BingoCubeVisualRenderer::color_index_to_color32(3),
-            BingoCubeVisualRenderer::color_index_to_color32(19)
+            renderer.color_index_to_color32(3),
+            renderer.color_index_to_color32(19)
         );
 
         let mut seen = std::collections::HashSet::new();
         for i in 0..16_u8 {
-            seen.insert(BingoCubeVisualRenderer::color_index_to_color32(i));
+            seen.insert(renderer.color_index_to_color32(i));
         }
         assert_eq!(
             seen.len(),
             16,
             "each palette index 0..16 should map to a distinct Color32"
         );
+    }
+
+    #[test]
+    fn test_visual_config_defaults() {
+        let config = VisualConfig::default();
+        assert_eq!(config.cell_size, 60.0);
+        assert_eq!(config.palette, default_palette());
+    }
+
+    #[test]
+    fn test_visual_config_builder() {
+        let config = VisualConfig::default().with_cell_size(80.0);
+        assert_eq!(config.cell_size, 80.0);
     }
 
     #[test]
@@ -351,7 +433,7 @@ mod tests {
             for j in 0..size {
                 if sub.is_revealed(i, j) {
                     let c = sub.get_color(i, j).expect("color when revealed");
-                    let mapped = BingoCubeVisualRenderer::color_index_to_color32(c);
+                    let mapped = BingoCubeVisualRenderer::new().color_index_to_color32(c);
                     assert_ne!(mapped, Color32::TRANSPARENT);
                 }
             }

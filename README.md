@@ -301,6 +301,15 @@ bingoCube/
 │   │   ├── response.rs    # Response surfaces
 │   │   └── readout.rs     # Output layer
 │   └── examples/          # 5 examples (QCD, rehearsal, lifecycle, ...)
+├── ipc/                   # JSON-RPC 2.0 + tarpc 0.37 IPC server
+│   └── src/
+│       ├── server.rs      # Unix socket server + TCP fallback
+│       ├── dispatch.rs    # Method routing
+│       ├── service.rs     # 10 semantic method handlers
+│       ├── tarpc.rs       # tarpc C2 dual-socket (feature-gated)
+│       └── types.rs       # Wire types
+├── cli/                   # UniBin binary
+│   └── src/main.rs        # serve, demo, generate, verify subcommands
 ├── demos/                 # Interactive egui demos
 │   └── src/interactive.rs
 ├── whitePaper/            # Comprehensive docs
@@ -340,6 +349,16 @@ cargo test --all
 
 ```bash
 cargo run -p bingocube-demos
+# or via UniBin:
+cargo run -p bingocube-cli -- demo
+```
+
+### Start IPC Server (C2 Dual-Socket)
+
+```bash
+cargo run -p bingocube-cli -- serve
+# JSON-RPC on $XDG_RUNTIME_DIR/bingocube/bingocube.sock
+# tarpc on   $XDG_RUNTIME_DIR/bingocube/bingocube.tarpc.sock
 ```
 
 ---
@@ -372,24 +391,20 @@ We welcome contributions! Areas of interest:
 
 - Core must remain dependency-minimal
 - All features must be optional (feature-gated)
-- Maintain test coverage (workspace: 73 tests, ~83% line coverage)
+- Maintain test coverage (workspace: 82 tests, ~84% line coverage)
 - Document security properties
 
 ---
 
 ## 📄 License
 
-**AGPL-3.0-or-later**
+**scyBorg Triple License**
 
-BingoCube is free and open-source software. You may:
-- ✅ Use under AGPL-3.0-or-later terms (network use triggers source disclosure obligation). See LICENSE for details.
-- ✅ Modify and distribute
-- ✅ Use commercially
-
-**Requirements**:
-- 📋 Include license and copyright notice
-- 📋 State changes made
-- 📋 Disclose source for network use (AGPL provision)
+| Layer | License | Covers |
+|-------|---------|--------|
+| Software | AGPL-3.0-or-later | Rust code, build scripts, tests |
+| Mechanics | ORC | Rules, progression systems |
+| Creative | CC-BY-SA 4.0 | Docs, papers, whitePaper |
 
 See [LICENSE](LICENSE) for full terms.
 
@@ -418,18 +433,19 @@ Special thanks to the ecoPrimals community for vision and feedback.
 
 ## 📊 Project Status
 
-- ✅ Workspace tests: **73 tests**, **83.4%** line coverage (tarpaulin)
+- ✅ **C2 dual-socket**: JSON-RPC 2.0 + tarpc 0.37 (15/15 primals converged)
+- ✅ Workspace tests: **82 tests**, **84%** line coverage (llvm-cov)
 - ✅ Edition **2024**, **clippy** pedantic + nursery clean
-- ✅ License **AGPL-3.0-or-later**
-- ✅ Core implementation (~600 lines)
-- ✅ Visual adapters (~800 lines)
-- ✅ Whitepaper collection (~180 pages)
-- ✅ Interactive demo
+- ✅ License: **scyBorg triple** (AGPL-3.0-or-later + ORC + CC-BY-SA 4.0)
+- ✅ **6 crates**, ~9,250 lines Rust
+- ✅ **cargo deny**: advisories ok, bans ok, licenses ok, sources ok
+- ✅ **Zero unsafe**, zero `.expect()` in library code
+- ✅ Interactive demo + UniBin CLI
 - 🟡 Crates.io publication (pending)
-- 🟡 Primal integrations (in progress)
+- 🟡 G65 protocol negotiation (after sourDough reference)
 
-**Version**: 0.1.1  
-**Status**: Production-ready for early adopters
+**Version**: 0.2.0  
+**Status**: C2 shipped — ecosystem-integrated IPC service
 
 ---
 

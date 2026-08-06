@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
 # BingoCube: Multi-Dimensional Visual Verification System
 
 **Version**: 1.0  

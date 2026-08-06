@@ -1,0 +1,25 @@
+[package]
+name = "bingocube-cli"
+description = "BingoCube UniBin — serve, demo, generate, and verify"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "bingocube"
+path = "src/main.rs"
+
+[dependencies]
+bingocube-core.workspace = true
+bingocube-ipc = { workspace = true, features = ["tarpc"] }
+bingocube-demos.workspace = true
+clap.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

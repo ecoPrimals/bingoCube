@@ -24,6 +24,9 @@ pub(crate) struct BingoCubeDemo {
 
     /// Show board B
     show_board_b: bool,
+
+    /// Startup or regeneration error message for user display
+    startup_error: Option<String>,
 }
 
 impl BingoCubeDemo {
@@ -33,11 +36,24 @@ impl BingoCubeDemo {
     pub(crate) fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         let config = Config::default();
         let seed_input = String::from("alice_identity");
-        let cube = BingoCube::from_seed(seed_input.as_bytes(), config.clone())
-            .expect("failed to generate cube");
+        let (cube, startup_error) =
+            match BingoCube::from_seed(seed_input.as_bytes(), config.clone()) {
+                Ok(cube) => (cube, None),
+                Err(e) => {
+                    let message = format!("Failed to generate cube: {e}");
+                    tracing::error!("{message}");
+                    let fallback = BingoCube::from_seed(b"bingocube_demo_fallback", config.clone())
+                        .unwrap_or_else(|fallback_err| {
+                            tracing::error!("Fallback cube generation failed: {fallback_err}");
+                            BingoCube::from_seed(b"bingocube_demo_fallback", Config::default())
+                                .expect("default config must produce a valid cube")
+                        });
+                    (fallback, Some(message))
+                }
+            };
 
         let mut renderer = BingoCubeVisualRenderer::new();
-        renderer.reveal_x = 1.0; // Start with full reveal
+        renderer.reveal_x = 1.0;
 
         Self {
             cube,
@@ -46,14 +62,52 @@ impl BingoCubeDemo {
             config,
             show_board_a: false,
             show_board_b: false,
+            startup_error,
         }
+    }
+
+    /// Show a modal error dialog when cube generation fails at startup.
+    fn show_startup_error(&mut self, ctx: &egui::Context) {
+        let Some(error) = self.startup_error.as_ref() else {
+            return;
+        };
+
+        let error = error.clone();
+        egui::Window::new("BingoCube Error")
+            .collapsible(false)
+            .resizable(true)
+            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .show(ctx, |ui| {
+                ui.label(
+                    egui::RichText::new("Could not generate the initial BingoCube.")
+                        .strong()
+                        .color(egui::Color32::from_rgb(255, 120, 120)),
+                );
+                ui.add_space(8.0);
+                ui.label(&error);
+                ui.add_space(8.0);
+                ui.label(
+                    "A fallback cube is shown. Try a different seed or check your configuration.",
+                );
+                ui.add_space(12.0);
+                if ui.button("Dismiss").clicked() {
+                    self.startup_error = None;
+                }
+            });
     }
 
     /// Regenerate cube from current seed
     fn regenerate_cube(&mut self) {
         match BingoCube::from_seed(self.seed_input.as_bytes(), self.config.clone()) {
-            Ok(cube) => self.cube = cube,
-            Err(e) => tracing::error!("Failed to generate cube: {}", e),
+            Ok(cube) => {
+                self.cube = cube;
+                self.startup_error = None;
+            }
+            Err(e) => {
+                let message = format!("Failed to generate cube: {e}");
+                tracing::error!("{message}");
+                self.startup_error = Some(message);
+            }
         }
     }
 }
@@ -64,6 +118,8 @@ impl eframe::App for BingoCubeDemo {
         reason = "single egui `update` callback is intentionally monolithic for the demo UI"
     )]
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.show_startup_error(ctx);
+
         // Set dark theme
         let mut style = (*ctx.style()).clone();
         style.visuals.dark_mode = true;

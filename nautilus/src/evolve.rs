@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //! One generation of shell evolution: project, train readout, fitness, drift, edge seed, breed.
 
+use bingocube_core::BingoCubeError;
 use rand::Rng;
 
 use crate::constraints::{DriftAction, EdgeSeeder};
@@ -17,7 +18,7 @@ pub fn evolve_one_generation<R: Rng>(
     inputs: &[ReservoirInput],
     targets: &[Vec<f64>],
     rng: &mut R,
-) -> f64 {
+) -> Result<f64, BingoCubeError> {
     assert_eq!(inputs.len(), targets.len());
 
     // 1. Project all inputs through current population
@@ -61,8 +62,7 @@ pub fn evolve_one_generation<R: Rng>(
             let deficit = new_size.saturating_sub(pop_size);
             if deficit > 0 {
                 for _ in 0..deficit {
-                    let board = bingocube_core::Board::generate(&shell.config.board_config, rng)
-                        .expect("valid config");
+                    let board = bingocube_core::Board::generate(&shell.config.board_config, rng)?;
                     shell.current_population.boards.push(board);
                 }
             }
@@ -102,9 +102,8 @@ pub fn evolve_one_generation<R: Rng>(
     });
 
     // 7. Breed next generation
-    let next = Evolution::next_generation(&shell.current_population, &evo_config, rng)
-        .expect("evolution should succeed");
+    let next = Evolution::next_generation(&shell.current_population, &evo_config, rng)?;
     shell.current_population = next;
 
-    mse
+    Ok(mse)
 }

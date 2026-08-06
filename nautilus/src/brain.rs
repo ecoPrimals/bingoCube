@@ -10,6 +10,7 @@
 //! The ESN handles fast within-run temporal dynamics. The Nautilus Shell
 //! handles slow cross-run structural adaptation. They complement each other.
 
+use bingocube_core::BingoCubeError;
 use serde::{Deserialize, Serialize};
 
 use crate::constraints::{DriftMonitor, EdgeSeeder};
@@ -109,18 +110,18 @@ pub struct NautilusBrain {
 
 impl NautilusBrain {
     /// Create a new Nautilus brain subsystem.
-    pub fn new(config: NautilusBrainConfig, instance: &str) -> Self {
+    pub fn new(config: NautilusBrainConfig, instance: &str) -> Result<Self, BingoCubeError> {
         let id = InstanceId::new(instance);
-        let shell = NautilusShell::from_seed(config.shell.clone(), id, 42);
+        let shell = NautilusShell::from_seed(config.shell.clone(), id, 42)?;
 
-        Self {
+        Ok(Self {
             config,
             shell,
             observations: Vec::new(),
             drift: DriftMonitor::default(),
             concept_edges: Vec::new(),
             trained: false,
-        }
+        })
     }
 
     /// Create from an inherited shell (cross-run bootstrap).
@@ -145,9 +146,9 @@ impl NautilusBrain {
 
     /// Train the shell on all accumulated observations.
     /// Returns the MSE, or None if not enough data.
-    pub fn train(&mut self) -> Option<f64> {
+    pub fn train(&mut self) -> Result<Option<f64>, BingoCubeError> {
         if self.observations.len() < self.config.min_training_points {
-            return None;
+            return Ok(None);
         }
 
         let (inputs, targets) = self.build_training_data();
@@ -155,7 +156,9 @@ impl NautilusBrain {
 
         for generation in 0..self.config.generations_per_cycle {
             let seed = self.shell.generation() as u64 * 1000 + generation;
-            last_mse = self.shell.evolve_generation_seeded(&inputs, &targets, seed);
+            last_mse = self
+                .shell
+                .evolve_generation_seeded(&inputs, &targets, seed)?;
 
             let traj = self.shell.fitness_trajectory();
             if let Some(last) = traj.last() {
@@ -165,7 +168,7 @@ impl NautilusBrain {
         }
 
         self.trained = true;
-        Some(last_mse)
+        Ok(Some(last_mse))
     }
 
     /// Predict dynamical observables for a beta value.
@@ -226,9 +229,9 @@ impl NautilusBrain {
 
     /// Detect concept edges via leave-one-out error analysis.
     /// Call after training with enough data. Expensive but informative.
-    pub fn detect_concept_edges(&mut self) -> Vec<(f64, f64)> {
+    pub fn detect_concept_edges(&mut self) -> Result<Vec<(f64, f64)>, BingoCubeError> {
         if self.observations.len() < 8 {
-            return Vec::new();
+            return Ok(Vec::new());
         }
 
         let (inputs, targets) = self.build_training_data();
@@ -257,10 +260,10 @@ impl NautilusBrain {
             };
 
             let loo_id = InstanceId::new("loo-edge-detect");
-            let mut loo = NautilusShell::from_seed(loo_cfg, loo_id, 42 + hold_out as u64);
+            let mut loo = NautilusShell::from_seed(loo_cfg, loo_id, 42 + hold_out as u64)?;
 
             for generation in 0..15 {
-                loo.evolve_generation_seeded(&train_in, &train_tgt, 3000 + generation);
+                loo.evolve_generation_seeded(&train_in, &train_tgt, 3000 + generation)?;
             }
 
             let pred = loo.predict(&inputs[hold_out]);
@@ -304,7 +307,7 @@ impl NautilusBrain {
             }
         }
 
-        edges
+        Ok(edges)
     }
 
     /// Whether the population is drifting (N_e * s too low).
@@ -455,10 +458,10 @@ mod tests {
     #[test]
     fn test_brain_creation_and_training() {
         let config = NautilusBrainConfig::default();
-        let mut brain = NautilusBrain::new(config, "test-instance");
+        let mut brain = NautilusBrain::new(config, "test-instance").expect("valid config");
 
         // Not enough data
-        assert!(brain.train().is_none());
+        assert!(brain.train().expect("train").is_none());
         assert!(brain.predict_dynamical(5.0, None).is_none());
 
         // Add observations
@@ -466,7 +469,7 @@ mod tests {
             brain.observe(obs);
         }
 
-        let mse = brain.train();
+        let mse = brain.train().expect("train");
         assert!(mse.is_some());
         assert!(brain.trained);
 
@@ -477,12 +480,12 @@ mod tests {
     #[test]
     fn test_candidate_screening() {
         let config = NautilusBrainConfig::default();
-        let mut brain = NautilusBrain::new(config, "test");
+        let mut brain = NautilusBrain::new(config, "test").expect("valid config");
 
         for obs in make_observations() {
             brain.observe(obs);
         }
-        brain.train();
+        brain.train().expect("train");
 
         let candidates = vec![4.5, 5.0, 5.5, 6.0, 6.5];
         let scored = brain.screen_candidates(&candidates);
@@ -492,12 +495,12 @@ mod tests {
     #[test]
     fn test_brain_serialization() {
         let config = NautilusBrainConfig::default();
-        let mut brain = NautilusBrain::new(config, "test");
+        let mut brain = NautilusBrain::new(config, "test").expect("valid config");
 
         for obs in make_observations() {
             brain.observe(obs);
         }
-        brain.train();
+        brain.train().expect("train");
 
         let json = brain.to_json().unwrap();
         let restored = NautilusBrain::from_json(&json).unwrap();
@@ -513,7 +516,8 @@ mod tests {
             n_targets: 3,
             ..Default::default()
         };
-        let mut shell = NautilusShell::from_seed(shell_cfg, InstanceId::new("donor"), 7);
+        let mut shell =
+            NautilusShell::from_seed(shell_cfg, InstanceId::new("donor"), 7).expect("valid config");
         let (inputs, targets) = {
             let inputs: Vec<ReservoirInput> = (0..10)
                 .map(|i| ReservoirInput::Continuous(vec![i as f64 / 10.0, 0.0, 0.0]))
@@ -521,7 +525,9 @@ mod tests {
             let targets: Vec<Vec<f64>> = (0..10).map(|i| vec![i as f64 / 10.0, 0.5, 0.5]).collect();
             (inputs, targets)
         };
-        shell.evolve_generation_seeded(&inputs, &targets, 100);
+        shell
+            .evolve_generation_seeded(&inputs, &targets, 100)
+            .expect("evolution should succeed");
 
         let brain_cfg = NautilusBrainConfig {
             shell: shell.config.clone(),
@@ -546,7 +552,7 @@ mod tests {
             min_training_points: 5,
             ..Default::default()
         };
-        let mut brain = NautilusBrain::new(brain_cfg, "one-target");
+        let mut brain = NautilusBrain::new(brain_cfg, "one-target").expect("valid config");
         for obs in make_observations() {
             brain.observe(obs);
         }
@@ -557,14 +563,16 @@ mod tests {
 
     #[test]
     fn test_screen_candidates_untrained() {
-        let brain = NautilusBrain::new(NautilusBrainConfig::default(), "cold");
+        let brain =
+            NautilusBrain::new(NautilusBrainConfig::default(), "cold").expect("valid config");
         let scored = brain.screen_candidates(&[1.0, 2.0]);
         assert_eq!(scored, vec![(1.0, 0.0), (2.0, 0.0)]);
     }
 
     #[test]
     fn test_detect_concept_edges_requires_many_observations() {
-        let mut brain = NautilusBrain::new(NautilusBrainConfig::default(), "sparse");
+        let mut brain =
+            NautilusBrain::new(NautilusBrainConfig::default(), "sparse").expect("valid config");
         for i in 0..4 {
             let beta = 4.0 + i as f64 * 0.1;
             brain.observe(BetaObservation {
@@ -579,7 +587,12 @@ mod tests {
                 anderson_lambda_min: None,
             });
         }
-        assert!(brain.detect_concept_edges().is_empty());
+        assert!(
+            brain
+                .detect_concept_edges()
+                .expect("detect concept edges")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -587,7 +600,7 @@ mod tests {
         let mut cfg = NautilusBrainConfig::default();
         cfg.shell.n_targets = 3;
         cfg.generations_per_cycle = 2;
-        let mut brain = NautilusBrain::new(cfg, "interp");
+        let mut brain = NautilusBrain::new(cfg, "interp").expect("valid config");
 
         brain.observe(BetaObservation {
             beta: 5.0,

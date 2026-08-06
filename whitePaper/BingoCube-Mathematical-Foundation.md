@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
 # BingoCube: Mathematical Foundation and Security Analysis
 
 **Version**: 1.0  

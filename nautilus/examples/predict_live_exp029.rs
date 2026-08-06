@@ -173,7 +173,7 @@ fn main() {
     };
 
     let instance = InstanceId::new("hotspring-biomeGate");
-    let mut shell = NautilusShell::from_seed(config, instance, 42);
+    let mut shell = NautilusShell::from_seed(config, instance, 42).expect("shell init");
 
     println!(
         "━━━ Evolution: 40 generations on {} training points ━━━\n",
@@ -186,7 +186,9 @@ fn main() {
     println!("  {:─>4}  {:─>10}  {:─>10}  {:─>10}", "", "", "", "");
 
     for gen_idx in 0..40 {
-        let mse = shell.evolve_generation_seeded(&train_inputs, &train_targets, 1000 + gen_idx);
+        let mse = shell
+            .evolve_generation_seeded(&train_inputs, &train_targets, 1000 + gen_idx)
+            .expect("evolve");
         let traj = shell.fitness_trajectory();
         let last = traj.last().unwrap();
         if gen_idx % 10 == 0 || gen_idx == 39 {

@@ -98,7 +98,7 @@ impl Default for ShellConfig {
 /// AKD1000 int4-quantized weight export for FullyConnected layer deployment.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Akd1000Export {
-    /// Quantized weights in [-8, 7] (int4 range), shape [n_targets][input_dim].
+    /// Quantized weights in \[-8, 7\] (int4 range), shape \[n_targets\]\[input_dim\].
     pub quantized_weights: Vec<Vec<i8>>,
 
     /// Per-target dequantization scale: w_float ≈ w_q / scale.

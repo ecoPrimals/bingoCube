@@ -11,6 +11,22 @@ yanked = "deny"
 ignore = [
     # Transitive from eframe 0.29 → accesskit_windows → paste; awaiting egui 0.30 upgrade.
     { id = "RUSTSEC-2024-0436", reason = "paste is transitive via eframe/egui; no direct usage" },
+    # Transitive from eframe/egui → rayon → crossbeam-epoch; not directly used.
+    { id = "RUSTSEC-2024-0388", reason = "crossbeam-epoch is transitive via eframe/egui → rayon; not directly used" },
+    { id = "RUSTSEC-2026-0204", reason = "crossbeam-epoch is transitive via criterion/rayon (dev) and eframe/egui; not directly used" },
+    # Transitive from eframe → derivative; not directly used.
+    { crate = "derivative", reason = "derivative is unmaintained and transitive via eframe/egui; not directly used" },
+    # Transitive from eframe/egui → accesskit/futures-lite; not directly used.
+    { id = "RUSTSEC-2024-0384", reason = "instant is unmaintained and transitive via eframe/egui; not directly used" },
+    # Transitive from eframe/egui → wayland-scanner → quick-xml; not directly used.
+    { id = "RUSTSEC-2024-0397", reason = "quick-xml is transitive via eframe/egui → accesskit; not directly used" },
+    { id = "RUSTSEC-2024-0399", reason = "quick-xml is transitive via eframe/egui → accesskit; not directly used" },
+    { id = "RUSTSEC-2026-0194", reason = "quick-xml is transitive via eframe/egui → wayland-scanner; not directly used" },
+    { id = "RUSTSEC-2026-0195", reason = "quick-xml is transitive via eframe/egui → wayland-scanner; not directly used" },
+    # Transitive from eframe/egui → epaint → ttf-parser; not directly used.
+    { id = "RUSTSEC-2026-0192", reason = "ttf-parser is transitive via eframe/egui → epaint; not directly used" },
+    # Transitive from bingocube-ipc → tarpc → bincode; not directly used.
+    { id = "RUSTSEC-2025-0141", reason = "bincode is transitive via tarpc IPC layer; not directly used" },
 ]
 
 [licenses]
@@ -30,6 +46,7 @@ allow = [
     "CC0-1.0",
     "OpenSSL",
     "OFL-1.1",
+    "LicenseRef-UFL-1.0",
 ]
 confidence-threshold = 0.8
 

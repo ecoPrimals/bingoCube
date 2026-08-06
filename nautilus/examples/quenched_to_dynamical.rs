@@ -170,7 +170,7 @@ fn main() {
     };
 
     let id = InstanceId::new("quenched-transfer-test");
-    let mut shell = NautilusShell::from_seed(config, id, 42);
+    let mut shell = NautilusShell::from_seed(config, id, 42).expect("shell init");
     let mut drift = DriftMonitor::default();
 
     println!("━━━ Phase 1: Full Training (quenched → dynamical) ━━━\n");
@@ -184,7 +184,9 @@ fn main() {
     );
 
     for gen_idx in 0..50 {
-        let mse = shell.evolve_generation_seeded(&inputs, &targets, 1000 + gen_idx);
+        let mse = shell
+            .evolve_generation_seeded(&inputs, &targets, 1000 + gen_idx)
+            .expect("evolve");
         let traj = shell.fitness_trajectory();
         let last = traj.last().unwrap();
 
@@ -314,9 +316,11 @@ fn main() {
         };
 
         let mut loo =
-            NautilusShell::from_seed(loo_cfg, InstanceId::new("loo"), 42 + hold_out as u64);
+            NautilusShell::from_seed(loo_cfg, InstanceId::new("loo"), 42 + hold_out as u64)
+                .expect("shell init");
         for gen_idx in 0..25 {
-            loo.evolve_generation_seeded(&train_in, &train_tgt, 2000 + gen_idx);
+            loo.evolve_generation_seeded(&train_in, &train_tgt, 2000 + gen_idx)
+                .expect("evolve");
         }
 
         let pred = loo.predict(&inputs[hold_out]);

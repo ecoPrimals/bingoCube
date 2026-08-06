@@ -22,7 +22,7 @@ pub struct LinearReadout {
     /// Weight matrix, shape [n_targets × response_dim], stored row-major.
     pub weights: Vec<Vec<f64>>,
 
-    /// Bias vector, shape [n_targets].
+    /// Bias vector, shape \[n_targets\].
     pub bias: Vec<f64>,
 
     /// Input dimensionality (response_dim).

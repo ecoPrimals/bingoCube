@@ -3,6 +3,37 @@
 All notable changes to bingoCube are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.0] — 2026-08-06
+
+### Added — C2 Dual-Socket Cephalization
+- `bingocube-ipc` crate: JSON-RPC 2.0 server on Unix socket + tarpc 0.37 C2 dual-socket (feature-gated)
+- `bingocube-cli` crate: UniBin binary with clap subcommands (serve, demo, generate, verify)
+- 10 semantic IPC methods: capabilities.list, health.liveness, health.check, identity.get, crypto.commit, crypto.reveal, crypto.verify, reservoir.create, reservoir.evolve, reservoir.predict
+- `.github/workflows/ci.yml` — fmt, clippy, test, doc, deny CI pipeline
+- `VisualConfig`, `AudioConfig`, `AnimationConfig` — hardcoded constants evolved to configuration
+- scyBorg triple license model (AGPL + ORC + CC-BY-SA 4.0)
+
+### Changed
+- **API evolution**: `NautilusShell::new()`, `from_seed()`, `evolve_generation()`, `merge_shell()` now return `Result` — zero `.expect()` in library code
+- **Zero-copy hashing**: `compute_scalar()` uses incremental `blake3::Hasher` (was `Vec::new()` per cell)
+- `color_grid()` returns `&[Vec<Color>]` (was `&Vec<Vec<Color>>`)
+- Seed derivation uses streaming hash (was `.concat()` allocation)
+- Tarpaulin fail-under raised from 60% to 80%
+- WhitePaper Biometric Identity split into 3 focused docs (was 2,270 lines)
+- All adapter configs now builder-pattern with defaults preserving prior behavior
+
+### Fixed
+- 7 broken rustdoc intra-doc links in nautilus
+- cargo-deny advisory + license failures (transitive egui deps)
+- Demo graceful error handling (was `.expect()` on startup)
+
+### Metrics
+- 6 crates (was 4), 82 tests (was 73), 9,253 lines Rust (was 7,024)
+- clippy pedantic+nursery: 0 warnings
+- cargo deny: advisories ok, bans ok, licenses ok, sources ok
+- cargo doc: 0 warnings
+- All files under 1,000 lines
+
 ## [0.1.1] — 2026-04-04
 
 ### Changed

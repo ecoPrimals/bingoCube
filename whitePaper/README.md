@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
 # BingoCube White Paper Collection
 
 **Version**: 1.1  
@@ -70,24 +71,49 @@ BingoCube bridges human-recognizable visual patterns with cryptographic security
 
 ---
 
-### 4. **BingoCube-Biometric-Identity.md** 🆔 ⭐ NEW!
-**Biometric-seeded identity and zero-knowledge access**
+### 4. **Biometric Identity Series** 🆔 ⭐ NEW!
+
+Split into three focused documents (formerly one 2,270-line monolith):
+
+#### **BingoCube-Biometric-Identity-Core.md**
+**Core identity concepts, seeding, and implementation patterns**
 
 **Contents**:
 - Biometric-seeded identity architecture (ephemeral biometric, permanent cube)
 - Progressive trust verification protocols (20% → 50% → 100%)
-- Homeless services use case (detailed registration, cross-org, mobility)
+- Sovereign data vault structure
+- Security model and threat overview
+- BearDog integration, vault implementation, progressive verification
+
+**Audience**: Identity system designers, implementers  
+**Length**: ~35 pages  
+**Key Takeaway**: How biometric seeding and progressive reveal create sovereign identity
+
+#### **BingoCube-Biometric-Identity-Medical.md**
+**Medical and emergency service use cases**
+
+**Contents**:
+- Homeless services (registration, cross-org, mobility)
 - Medical data sovereignty (professional courtesy pattern, dual-key encryption)
-- Sovereign data vaults (user-owned, portable, auditable)
+- Cross-organization transfer protocol
 - Primal integration patterns (BearDog, NestGate, Songbird, ToadStool)
-- Security analysis (threat model, attack scenarios, formal claims)
+
+**Audience**: Social services organizations, medical privacy advocates, policy makers  
+**Length**: ~40 pages  
+**Key Takeaway**: Real-world deployment patterns for vulnerable populations
+
+#### **BingoCube-Biometric-Identity-Privacy.md**
+**Privacy analysis and threat model**
+
+**Contents**:
+- Formal security claims and attack scenarios
 - Privacy guarantees (GDPR/CCPA compliance, unlinkability)
 - Comparison to existing systems (biometrics, blockchain, OAuth, PGP)
 - Future directions (multi-factor, hierarchical, threshold recovery)
 
-**Audience**: Identity system designers, social services organizations, medical privacy advocates, policy makers  
-**Length**: ~70 pages  
-**Key Takeaway**: How to build sovereign identity systems without biometric honeypots
+**Audience**: Security auditors, privacy advocates, compliance officers  
+**Length**: ~20 pages  
+**Key Takeaway**: Rigorous privacy and security analysis
 
 ---
 
@@ -109,7 +135,8 @@ BingoCube bridges human-recognizable visual patterns with cryptographic security
 ### For Identity System Designers
 **Read**:
 1. BingoCube-Overview.md (Sections 1-4)
-2. BingoCube-Biometric-Identity.md (all)
+2. BingoCube-Biometric-Identity-Core.md (all)
+3. BingoCube-Biometric-Identity-Medical.md or BingoCube-Biometric-Identity-Privacy.md (as needed)
 
 **Time**: 2 hours  
 **Goal**: Understand sovereign identity architecture and implementation patterns
@@ -371,7 +398,7 @@ This whitepaper collection is a **living document**. Contributions welcome:
 ## License
 
 **Copyright**: ecoPrimals Team, 2025  
-**License**: AGPL-3.0-or-later
+**Licenses**: scyBorg triple — AGPL-3.0-or-later (code), ORC (mechanics), CC-BY-SA 4.0 (docs)
 
 ---
 

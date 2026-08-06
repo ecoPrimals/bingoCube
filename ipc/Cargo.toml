@@ -1,0 +1,47 @@
+[package]
+name = "bingocube-ipc"
+description = "JSON-RPC 2.0 and tarpc IPC layer for BingoCube"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+doc_markdown = "allow"
+missing_const_for_fn = "allow"
+needless_pass_by_value = "allow"
+significant_drop_tightening = "allow"
+redundant_pub_crate = "allow"
+option_if_let_else = "allow"
+ignored_unit_patterns = "allow"
+collapsible_if = "allow"
+single_match_else = "allow"
+redundant_closure_for_method_calls = "allow"
+manual_ok_err = "allow"
+
+[features]
+default = ["tarpc"]
+tarpc = ["dep:tarpc", "dep:futures"]
+
+[dependencies]
+bingocube-core.workspace = true
+bingocube-nautilus.workspace = true
+blake3.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tarpc = { workspace = true, optional = true }
+futures = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "macros"] }
