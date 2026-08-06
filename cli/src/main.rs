@@ -31,6 +31,10 @@ enum Commands {
         #[arg(long)]
         no_tarpc: bool,
 
+        /// G65 single-socket protocol negotiation (tarpc vs JSON-RPC on one socket).
+        #[arg(long, env = "BINGOCUBE_NEGOTIATE")]
+        negotiate: bool,
+
         /// Optional TCP fallback port on 127.0.0.1 for JSON-RPC.
         #[arg(long)]
         tcp_port: Option<u16>,
@@ -92,13 +96,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Some(Commands::Serve {
             socket_dir,
             no_tarpc,
+            negotiate,
             tcp_port,
         }) => {
             let config = ServeConfig {
                 socket_dir: resolve_socket_dir(Some(socket_dir)),
                 enable_tarpc: !no_tarpc,
+                negotiate,
                 tcp_port,
             };
+            if negotiate {
+                tracing::info!("G65 single-socket protocol negotiation enabled");
+            }
             let endpoints = serve(config).await?;
             tracing::info!(
                 jsonrpc = %endpoints.jsonrpc_socket.display(),

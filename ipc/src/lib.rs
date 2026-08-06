@@ -3,14 +3,15 @@
 //!
 //! JSON-RPC 2.0 and tarpc IPC for the `BingoCube` primal.
 //!
-//! Implements the ecoPrimals dual-socket pattern:
-//! - `{socket_dir}/bingocube.sock` — newline-delimited JSON-RPC 2.0
-//! - `{socket_dir}/bingocube.tarpc.sock` — tarpc + bincode (feature `tarpc`)
+//! Supports two modes:
+//! - **C2 dual-socket** (default): `.sock` (JSON-RPC) + `.tarpc.sock` (tarpc)
+//! - **G65 single-socket** (`--negotiate`): one socket, protocol negotiation at connect time
 
 #![warn(missing_docs)]
 
 mod dispatch;
 mod error;
+mod negotiation;
 mod protocol;
 mod server;
 mod service;
@@ -23,6 +24,11 @@ mod tarpc;
 
 pub use dispatch::dispatch;
 pub use error::IpcError;
+pub use negotiation::{
+    IpcProtocol, NegotiationError, NegotiationRequest, NegotiationResponse,
+    ServerNegotiationOutcome, negotiate_client, negotiate_server, negotiate_server_outcome,
+    select_protocol,
+};
 pub use protocol::{JSONRPC_VERSION, JsonRpcRequest, JsonRpcResponse};
 pub use server::{BoundEndpoints, ServeConfig, serve, wait_for_shutdown};
 pub use service::{METHODS, VERSION};

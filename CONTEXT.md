@@ -13,7 +13,7 @@ computing via nautilus shell populations.
 | `bingocube-adapters` | Visual (egui), audio, animation adapters | library (feature-gated) |
 | `bingocube-demos` | Interactive egui demo binary | binary + library |
 | `bingocube-nautilus` | Evolutionary reservoir computing via board populations | library |
-| `bingocube-ipc` | JSON-RPC 2.0 + tarpc 0.37 IPC server (C2 dual-socket) | library |
+| `bingocube-ipc` | JSON-RPC 2.0 + tarpc 0.37 IPC server (C2 + G65 negotiation) | library |
 | `bingocube-cli` | UniBin binary: serve, demo, generate, verify | binary |
 
 ## IPC Methods (10)
@@ -32,13 +32,13 @@ reservoir.create, reservoir.evolve, reservoir.predict
 
 ## Tests
 
-82 tests (7 core, 21 adapters, 47 nautilus, 6 IPC, 1 doctest), 0 failures.
+94 tests (7 core, 21 adapters, 47 nautilus, 18 IPC, 1 doctest), 0 failures.
 
 ## Status
 
-v0.2.0 — C2 dual-socket shipped. Edition 2024, clippy pedantic+nursery clean,
-`forbid(unsafe_code)` workspace-wide. Zero `.expect()` in library code.
-scyBorg triple license (AGPL + ORC + CC-BY-SA).
+v0.3.0 — G65 protocol negotiation shipped. C2 dual-socket intact as fallback.
+Edition 2024, clippy pedantic+nursery clean, `forbid(unsafe_code)` workspace-wide.
+Zero `.expect()` in library code. scyBorg triple license (AGPL + ORC + CC-BY-SA).
 
 ## Dependencies
 

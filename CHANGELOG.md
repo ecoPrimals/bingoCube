@@ -3,6 +3,27 @@
 All notable changes to bingoCube are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.0] — 2026-08-06
+
+### Added — G65 Protocol Negotiation
+- `negotiation` module in bingocube-ipc: single-socket protocol selection (tarpc vs JSON-RPC)
+- G65 wire protocol: `PROTOCOLS: tarpc,jsonrpc\n` → `PROTOCOL: tarpc\n`
+- `IpcProtocol`, `NegotiationRequest`, `NegotiationResponse`, `NegotiationError` types
+- `negotiate_client()`, `negotiate_server()`, `negotiate_server_outcome()` async functions
+- `ServerNegotiationOutcome` preserves legacy first line for backward-compatible JSON-RPC fallback
+- `--negotiate` CLI flag (env: `BINGOCUBE_NEGOTIATE`) for G65 single-socket mode
+- 100ms timeout for backward compatibility with Phase 1/2 clients
+- 12 new tests (wire roundtrip, duplex negotiation, legacy fallback, selection algorithm)
+
+### Changed
+- `ServeConfig` gains `negotiate: bool` — when true, skips separate `.tarpc.sock` listener
+- Server accept loop routes tarpc-negotiated connections to stub handler (full transport wrapping in convergence)
+
+### Metrics
+- 6 crates, 94 tests (was 82), ~9,700 lines Rust (was 9,253)
+- G65 protocol negotiation: SHIPPED
+- All prior C2 dual-socket and zero-copy optimizations intact
+
 ## [0.2.0] — 2026-08-06
 
 ### Added — C2 Dual-Socket Cephalization

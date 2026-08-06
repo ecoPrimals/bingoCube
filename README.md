@@ -301,10 +301,11 @@ bingoCube/
 │   │   ├── response.rs    # Response surfaces
 │   │   └── readout.rs     # Output layer
 │   └── examples/          # 5 examples (QCD, rehearsal, lifecycle, ...)
-├── ipc/                   # JSON-RPC 2.0 + tarpc 0.37 IPC server
+├── ipc/                   # JSON-RPC 2.0 + tarpc 0.37 IPC (C2 + G65)
 │   └── src/
 │       ├── server.rs      # Unix socket server + TCP fallback
 │       ├── dispatch.rs    # Method routing
+│       ├── negotiation.rs # G65 protocol negotiation
 │       ├── service.rs     # 10 semantic method handlers
 │       ├── tarpc.rs       # tarpc C2 dual-socket (feature-gated)
 │       └── types.rs       # Wire types
@@ -353,12 +354,17 @@ cargo run -p bingocube-demos
 cargo run -p bingocube-cli -- demo
 ```
 
-### Start IPC Server (C2 Dual-Socket)
+### Start IPC Server
 
 ```bash
+# C2 dual-socket (default — backward compatible)
 cargo run -p bingocube-cli -- serve
 # JSON-RPC on $XDG_RUNTIME_DIR/bingocube/bingocube.sock
 # tarpc on   $XDG_RUNTIME_DIR/bingocube/bingocube.tarpc.sock
+
+# G65 single-socket (protocol negotiation)
+cargo run -p bingocube-cli -- serve --negotiate
+# Single socket auto-negotiates tarpc vs JSON-RPC at connection time
 ```
 
 ---
@@ -391,7 +397,7 @@ We welcome contributions! Areas of interest:
 
 - Core must remain dependency-minimal
 - All features must be optional (feature-gated)
-- Maintain test coverage (workspace: 82 tests, ~84% line coverage)
+- Maintain test coverage (workspace: 94 tests, ~84% line coverage)
 - Document security properties
 
 ---
@@ -433,19 +439,19 @@ Special thanks to the ecoPrimals community for vision and feedback.
 
 ## 📊 Project Status
 
-- ✅ **C2 dual-socket**: JSON-RPC 2.0 + tarpc 0.37 (15/15 primals converged)
-- ✅ Workspace tests: **82 tests**, **84%** line coverage (llvm-cov)
+- ✅ **G65 protocol negotiation**: single-socket tarpc/JSON-RPC auto-selection
+- ✅ **C2 dual-socket**: JSON-RPC 2.0 + tarpc 0.37 (fallback when G65 disabled)
+- ✅ Workspace tests: **94 tests**, **84%** line coverage (llvm-cov)
 - ✅ Edition **2024**, **clippy** pedantic + nursery clean
 - ✅ License: **scyBorg triple** (AGPL-3.0-or-later + ORC + CC-BY-SA 4.0)
-- ✅ **6 crates**, ~9,250 lines Rust
+- ✅ **6 crates**, ~9,700 lines Rust
 - ✅ **cargo deny**: advisories ok, bans ok, licenses ok, sources ok
 - ✅ **Zero unsafe**, zero `.expect()` in library code
 - ✅ Interactive demo + UniBin CLI
 - 🟡 Crates.io publication (pending)
-- 🟡 G65 protocol negotiation (after sourDough reference)
 
-**Version**: 0.2.0  
-**Status**: C2 shipped — ecosystem-integrated IPC service
+**Version**: 0.3.0  
+**Status**: G65 shipped — fully cephalized primal
 
 ---
 
