@@ -33,6 +33,12 @@
 
 #![warn(missing_docs)]
 
+pub mod platform_substrate;
+pub use platform_substrate::{
+    PlatformAccess, ensure_dir_with_access, ensure_secure_parent, is_symlink, platform_link,
+    query_access,
+};
+
 use rand::seq::SliceRandom;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha20Rng;

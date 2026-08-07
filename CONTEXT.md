@@ -5,11 +5,11 @@ multi-dimensional visual artifacts by cross-binding two bingo boards via BLAKE3
 hashing, producing a color grid with progressive reveal. Evolutionary reservoir
 computing via nautilus shell populations.
 
-## Workspace Structure
+## Workspace Structure (`crates/`)
 
 | Crate | Role | Type |
 |-------|------|------|
-| `bingocube-core` | Two-board cross-binding, scalar field, color grid, subcube reveal | library |
+| `bingocube-core` | Two-board cross-binding, scalar field, color grid, subcube reveal, G68 platform substrate | library |
 | `bingocube-adapters` | Visual (egui), audio, animation adapters | library (feature-gated) |
 | `bingocube-demos` | Interactive egui demo binary | binary + library |
 | `bingocube-nautilus` | Evolutionary reservoir computing via board populations | library |
@@ -32,13 +32,14 @@ reservoir.create, reservoir.evolve, reservoir.predict
 
 ## Tests
 
-104 tests (7 core, 21 adapters, 47 nautilus, 28 IPC, 1 doctest), 0 failures.
+113 tests (16 core, 21 adapters, 47 nautilus, 28 IPC, 1 doctest), 0 failures.
 
 ## Status
 
-v0.4.0 — G66 transport abstraction shipped. G65 negotiation + C2 dual-socket intact.
-Silicon-agnostic: all `#[cfg(unix)]` confined to transport layer. Edition 2024,
-clippy pedantic+nursery clean, `forbid(unsafe_code)` workspace-wide.
+v0.5.0 — G68 platform substrate shipped. Standard `crates/` layout.
+G66 transport + G65 negotiation + C2 dual-socket intact.
+Silicon-agnostic: all `#[cfg(unix)]` confined to `platform_substrate` + `transport` modules.
+Edition 2024, clippy pedantic+nursery clean, `forbid(unsafe_code)` workspace-wide.
 Zero `.expect()` in library code. scyBorg triple license (AGPL + ORC + CC-BY-SA).
 
 ## Dependencies

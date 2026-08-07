@@ -59,16 +59,17 @@ pub fn tarpc_socket_from_jsonrpc(jsonrpc_path: &Path) -> PathBuf {
     }
 }
 
-/// Prepare a socket path for binding (create parent dir, remove stale file).
+/// Prepare a socket path for binding (secure parent dir, remove stale file).
+///
+/// Uses [`bingocube_core::ensure_secure_parent`] (G68) for platform-abstract
+/// directory creation with owner-only access.
 ///
 /// # Errors
 ///
 /// Returns an error if the directory cannot be created or the stale socket
 /// cannot be removed.
 pub fn prepare_socket_path(path: &Path) -> Result<(), std::io::Error> {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
+    bingocube_core::ensure_secure_parent(path)?;
     if path.exists() {
         std::fs::remove_file(path)?;
     }

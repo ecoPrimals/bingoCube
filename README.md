@@ -282,38 +282,39 @@ cargo doc --open --no-deps
 
 ```
 bingoCube/
-├── core/                   # Pure crypto core (~600 lines, 15 tests)
-│   └── src/lib.rs
-├── adapters/              # Optional visualization (feature-gated)
-│   └── src/
-│       ├── visual.rs      # egui rendering
-│       ├── audio.rs       # Sonification
-│       └── animation.rs   # Progressive reveal
-├── nautilus/              # Evolutionary reservoir computing
-│   ├── src/
-│   │   ├── shell.rs       # Population lifecycle
-│   │   ├── snapshot.rs    # Shell snapshots
-│   │   ├── evolve.rs      # Evolution helpers
-│   │   ├── evolution.rs   # Selection/crossover/mutation
-│   │   ├── brain.rs       # Prediction engine
-│   │   ├── constraints.rs # Drift monitoring
-│   │   ├── population.rs  # Board populations
-│   │   ├── response.rs    # Response surfaces
-│   │   └── readout.rs     # Output layer
-│   └── examples/          # 5 examples (QCD, rehearsal, lifecycle, ...)
-├── ipc/                   # JSON-RPC 2.0 + tarpc 0.37 IPC (C2 + G65 + G66)
-│   └── src/
-│       ├── transport.rs   # G66 transport abstraction (all #[cfg] here)
-│       ├── server.rs      # Transport-abstract server + accept loop
-│       ├── dispatch.rs    # Method routing
-│       ├── negotiation.rs # G65 protocol negotiation
-│       ├── service.rs     # 10 semantic method handlers
-│       ├── tarpc.rs       # tarpc C2 dual-socket (feature+unix gated)
-│       └── types.rs       # Wire types
-├── cli/                   # UniBin binary
-│   └── src/main.rs        # serve, demo, generate, verify subcommands
-├── demos/                 # Interactive egui demos
-│   └── src/interactive.rs
+├── crates/
+│   ├── core/                   # Pure crypto core + G68 platform substrate
+│   │   └── src/
+│   │       ├── lib.rs
+│   │       └── platform_substrate.rs  # G68 L1 links + L2 permissions
+│   ├── adapters/              # Optional visualization (feature-gated)
+│   │   └── src/
+│   │       ├── visual.rs      # egui rendering
+│   │       ├── audio.rs       # Sonification
+│   │       └── animation.rs   # Progressive reveal
+│   ├── nautilus/              # Evolutionary reservoir computing
+│   │   ├── src/
+│   │   │   ├── shell.rs       # Population lifecycle
+│   │   │   ├── evolution.rs   # Selection/crossover/mutation
+│   │   │   ├── brain.rs       # Prediction engine
+│   │   │   ├── constraints.rs # Drift monitoring
+│   │   │   ├── population.rs  # Board populations
+│   │   │   ├── response.rs    # Response surfaces
+│   │   │   └── readout.rs     # Output layer
+│   │   └── examples/          # 5 examples (QCD, rehearsal, lifecycle, ...)
+│   ├── ipc/                   # JSON-RPC 2.0 + tarpc 0.37 IPC (C2 + G65 + G66)
+│   │   └── src/
+│   │       ├── transport.rs   # G66 transport abstraction (all #[cfg] here)
+│   │       ├── server.rs      # Transport-abstract server + accept loop
+│   │       ├── dispatch.rs    # Method routing
+│   │       ├── negotiation.rs # G65 protocol negotiation
+│   │       ├── service.rs     # 10 semantic method handlers
+│   │       ├── tarpc.rs       # tarpc C2 dual-socket (feature+unix gated)
+│   │       └── types.rs       # Wire types
+│   ├── cli/                   # UniBin binary
+│   │   └── src/main.rs        # serve, demo, generate, verify subcommands
+│   └── demos/                 # Interactive egui demos
+│       └── src/interactive.rs
 ├── whitePaper/            # Comprehensive docs
 ├── CHANGELOG.md
 ├── CONTEXT.md
@@ -399,7 +400,7 @@ We welcome contributions! Areas of interest:
 
 - Core must remain dependency-minimal
 - All features must be optional (feature-gated)
-- Maintain test coverage (workspace: 104 tests, ~84% line coverage)
+- Maintain test coverage (workspace: 113 tests, ~84% line coverage)
 - Document security properties
 
 ---
@@ -441,20 +442,22 @@ Special thanks to the ecoPrimals community for vision and feedback.
 
 ## 📊 Project Status
 
+- ✅ **G68 platform substrate**: `platform_link()`, `PlatformAccess`, `ensure_secure_parent()` — 0 L1/L2/L3 violations
 - ✅ **G66 transport abstraction**: silicon-agnostic (UDS / TCP / mesh) — zero Unix imports in business logic
 - ✅ **G65 protocol negotiation**: single-socket tarpc/JSON-RPC auto-selection
 - ✅ **C2 dual-socket**: JSON-RPC 2.0 + tarpc 0.37 (fallback when G65 disabled)
-- ✅ Workspace tests: **104 tests**, **84%** line coverage (llvm-cov)
+- ✅ Workspace tests: **113 tests**, **84%** line coverage (llvm-cov)
+- ✅ Standard **`crates/`** layout — `sourdough validate platform-substrate` compatible
 - ✅ Edition **2024**, **clippy** pedantic + nursery clean
 - ✅ License: **scyBorg triple** (AGPL-3.0-or-later + ORC + CC-BY-SA 4.0)
-- ✅ **6 crates**, ~10,200 lines Rust
+- ✅ **6 crates**, ~10,500 lines Rust
 - ✅ **cargo deny**: advisories ok, bans ok, licenses ok, sources ok
 - ✅ **Zero unsafe**, zero `.expect()` in library code
 - ✅ Interactive demo + UniBin CLI + `TRANSPORT_ENDPOINT` injection
 - 🟡 Crates.io publication (pending)
 
-**Version**: 0.4.0  
-**Status**: G66 shipped — fully cephalized, transport-abstract primal
+**Version**: 0.5.0  
+**Status**: G68 shipped — platform-substrate compliant, fully cephalized primal
 
 ---
 

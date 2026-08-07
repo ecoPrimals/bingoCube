@@ -3,6 +3,32 @@
 All notable changes to bingoCube are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.0] — 2026-08-07
+
+### Added — G68 Platform Substrate
+- `platform_substrate` module in bingocube-core: L1 links + L2 permissions abstraction
+- `platform_link()` — symlink (Unix), junction/hard-link (Windows), hard-link (other)
+- `is_symlink()` — platform-aware symbolic link detection
+- `PlatformAccess` enum (OwnerReadWrite, OwnerFull, PublicRead, PublicExecute, Readonly)
+- `PlatformAccess::apply()` — POSIX mode bits (Unix), readonly attribute (non-Unix)
+- `query_access()` — read effective access level, platform-neutral
+- `ensure_dir_with_access()` — create directory tree with specified access
+- `ensure_secure_parent()` — owner-only parent directory (used by socket preparation)
+- 9 new platform_substrate tests (L1 link+symlink, L2 permissions roundtrip, helpers)
+
+### Changed
+- **Standard `crates/` layout**: workspace members moved from top-level to `crates/` directory
+  - Enables `sourdough validate platform-substrate` scanner (was: "Scan failed — Non-standard source layout")
+  - Matches ecosystem convention (sourDough, squirrel, nestGate)
+- `prepare_socket_path()` now uses `ensure_secure_parent()` (G68 L2) for platform-abstract secure directory creation (was: raw `create_dir_all`)
+- All `#[cfg(unix)]` for permissions confined to `platform_substrate.rs` (and transport in `transport.rs`)
+
+### Metrics
+- 6 crates, 113 tests (was 104), ~10,500 lines Rust (was 10,200)
+- G68 platform substrate: SHIPPED
+- G68 violations: 0 L1, 0 L2, 0 L3 (was: SCAN FAILED)
+- All prior G66 transport, G65 negotiation, and C2 dual-socket intact
+
 ## [0.4.0] — 2026-08-06
 
 ### Added — G66 Transport Abstraction

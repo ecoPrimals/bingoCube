@@ -1,7 +1,7 @@
 +++
 title = "bingoCube Validation Summary"
-description = "Human-verifiable cryptographic commitment system — cross-bound bingo boards, progressive reveal, evolutionary reservoir computing. G66 transport abstraction + G65 protocol negotiation + C2 dual-socket IPC. 104 tests, pure Rust."
-date = 2026-08-06
+description = "Human-verifiable cryptographic commitment system — cross-bound bingo boards, progressive reveal, evolutionary reservoir computing. G68 platform substrate + G66 transport + G65 protocol negotiation + C2 dual-socket IPC. 113 tests, pure Rust."
+date = 2026-08-07
 
 [taxonomies]
 primals = ["bingocube"]
@@ -10,16 +10,17 @@ springs = []
 
 ## Status
 
-- **Gate**: CLEAR — G66 transport abstraction shipped (G65 + C2 intact)
-- **Phase**: G66 (silicon-agnostic: UDS / TCP / mesh transport injection)
+- **Gate**: CLEAR — G68 platform substrate shipped (G66 + G65 + C2 intact)
+- **Phase**: G68 (platform-substrate compliant, standard `crates/` layout)
 - **Edition**: 2024
-- **Tests**: 104 passing (7 core, 21 adapters, 47 nautilus, 28 IPC, 1 doctest)
+- **Tests**: 113 passing (16 core, 21 adapters, 47 nautilus, 28 IPC, 1 doctest)
 - **Coverage**: 84% line (llvm-cov), fail-under: 80%
 - **Clippy**: 0 warnings (`pedantic` + `nursery`, `-D warnings`)
 - **Unsafe**: zero (`forbid(unsafe_code)` workspace-wide)
 - **Pure Rust**: No C dependencies (blake3, rand/rand_chacha, serde, tokio, tarpc, egui optional)
 - **License**: scyBorg triple (AGPL-3.0-or-later + ORC + CC-BY-SA 4.0)
 - **cargo deny**: advisories ok, bans ok, licenses ok, sources ok
+- **G68 violations**: 0 L1, 0 L2, 0 L3
 
 ## IPC Methods (10)
 
@@ -51,6 +52,14 @@ springs = []
 | `bingocube-nautilus` | Evolutionary reservoir computing via board populations | library |
 | `bingocube-ipc` | JSON-RPC 2.0 + tarpc 0.37 IPC (C2 + G65 + G66 transport) | library |
 | `bingocube-cli` | UniBin binary (serve, demo, generate, verify) | binary |
+
+## Platform Substrate (G68)
+
+| Layer | Violations | Module |
+|-------|-----------|--------|
+| L1 Links | 0 | `core/src/platform_substrate.rs` |
+| L2 Permissions | 0 | `core/src/platform_substrate.rs` |
+| L3 Device | N/A | Not applicable (no hardware drivers) |
 
 ## Composition Role
 
