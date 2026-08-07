@@ -3,6 +3,31 @@
 All notable changes to bingoCube are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.0] — 2026-08-06
+
+### Added — G66 Transport Abstraction
+- `transport` module in bingocube-ipc: `TransportEndpoint`, `TransportStream`, `TransportListener`
+- `TransportEndpoint` enum (Uds, Tcp, MeshRelay) with serde, `platform_default()`, `from_env_or_default()`, `is_local()`
+- `TransportStream` — connected byte pipe with `AsyncRead + AsyncWrite`, platform details confined
+- `TransportListener` — server-side listener with `bind()`, `accept()`, `local_endpoint()`, `cleanup()`
+- `connect_transport()` — client-side connection via any endpoint type
+- `TRANSPORT_ENDPOINT` env var for transport injection (launcher/biomeOS/songBird decides)
+- 10 new transport tests (serde roundtrip, TCP bind/accept/connect, mesh unsupported, is_local, platform_default)
+
+### Changed
+- **Silicon deism eliminated**: all `UnixListener`/`UnixStream` imports confined to `transport.rs`
+- `ServeConfig` uses `TransportEndpoint` (was `socket_dir: PathBuf` + `tcp_port: Option<u16>`)
+- `BoundEndpoints` uses `TransportEndpoint` (was separate `PathBuf` and `SocketAddr` fields)
+- Server accept loop unified: `spawn_listener()` replaces `spawn_jsonrpc_unix()` + `spawn_jsonrpc_tcp()`
+- tarpc C2 `serve_tarpc` guarded with `#[cfg(unix)]` (UDS-only, G65 handles tarpc on any transport)
+- CLI `serve` subcommand accepts `--transport` / `TRANSPORT_ENDPOINT` for endpoint injection
+
+### Metrics
+- 6 crates, 104 tests (was 94), ~10,200 lines Rust (was 9,700)
+- G66 transport abstraction: SHIPPED
+- Zero unconditional Unix imports outside transport layer
+- All prior G65 negotiation and C2 dual-socket intact
+
 ## [0.3.0] — 2026-08-06
 
 ### Added — G65 Protocol Negotiation

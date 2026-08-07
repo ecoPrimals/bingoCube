@@ -301,13 +301,14 @@ bingoCube/
 │   │   ├── response.rs    # Response surfaces
 │   │   └── readout.rs     # Output layer
 │   └── examples/          # 5 examples (QCD, rehearsal, lifecycle, ...)
-├── ipc/                   # JSON-RPC 2.0 + tarpc 0.37 IPC (C2 + G65)
+├── ipc/                   # JSON-RPC 2.0 + tarpc 0.37 IPC (C2 + G65 + G66)
 │   └── src/
-│       ├── server.rs      # Unix socket server + TCP fallback
+│       ├── transport.rs   # G66 transport abstraction (all #[cfg] here)
+│       ├── server.rs      # Transport-abstract server + accept loop
 │       ├── dispatch.rs    # Method routing
 │       ├── negotiation.rs # G65 protocol negotiation
 │       ├── service.rs     # 10 semantic method handlers
-│       ├── tarpc.rs       # tarpc C2 dual-socket (feature-gated)
+│       ├── tarpc.rs       # tarpc C2 dual-socket (feature+unix gated)
 │       └── types.rs       # Wire types
 ├── cli/                   # UniBin binary
 │   └── src/main.rs        # serve, demo, generate, verify subcommands
@@ -357,14 +358,15 @@ cargo run -p bingocube-cli -- demo
 ### Start IPC Server
 
 ```bash
-# C2 dual-socket (default — backward compatible)
+# C2 dual-socket on UDS (default on Unix)
 cargo run -p bingocube-cli -- serve
-# JSON-RPC on $XDG_RUNTIME_DIR/bingocube/bingocube.sock
-# tarpc on   $XDG_RUNTIME_DIR/bingocube/bingocube.tarpc.sock
 
-# G65 single-socket (protocol negotiation)
+# G65 single-socket (protocol negotiation on any transport)
 cargo run -p bingocube-cli -- serve --negotiate
-# Single socket auto-negotiates tarpc vs JSON-RPC at connection time
+
+# G66 transport injection (TCP instead of UDS)
+TRANSPORT_ENDPOINT='{"transport":"tcp","host":"127.0.0.1","port":7700}' \
+  cargo run -p bingocube-cli -- serve
 ```
 
 ---
@@ -397,7 +399,7 @@ We welcome contributions! Areas of interest:
 
 - Core must remain dependency-minimal
 - All features must be optional (feature-gated)
-- Maintain test coverage (workspace: 94 tests, ~84% line coverage)
+- Maintain test coverage (workspace: 104 tests, ~84% line coverage)
 - Document security properties
 
 ---
@@ -439,19 +441,20 @@ Special thanks to the ecoPrimals community for vision and feedback.
 
 ## 📊 Project Status
 
+- ✅ **G66 transport abstraction**: silicon-agnostic (UDS / TCP / mesh) — zero Unix imports in business logic
 - ✅ **G65 protocol negotiation**: single-socket tarpc/JSON-RPC auto-selection
 - ✅ **C2 dual-socket**: JSON-RPC 2.0 + tarpc 0.37 (fallback when G65 disabled)
-- ✅ Workspace tests: **94 tests**, **84%** line coverage (llvm-cov)
+- ✅ Workspace tests: **104 tests**, **84%** line coverage (llvm-cov)
 - ✅ Edition **2024**, **clippy** pedantic + nursery clean
 - ✅ License: **scyBorg triple** (AGPL-3.0-or-later + ORC + CC-BY-SA 4.0)
-- ✅ **6 crates**, ~9,700 lines Rust
+- ✅ **6 crates**, ~10,200 lines Rust
 - ✅ **cargo deny**: advisories ok, bans ok, licenses ok, sources ok
 - ✅ **Zero unsafe**, zero `.expect()` in library code
-- ✅ Interactive demo + UniBin CLI
+- ✅ Interactive demo + UniBin CLI + `TRANSPORT_ENDPOINT` injection
 - 🟡 Crates.io publication (pending)
 
-**Version**: 0.3.0  
-**Status**: G65 shipped — fully cephalized primal
+**Version**: 0.4.0  
+**Status**: G66 shipped — fully cephalized, transport-abstract primal
 
 ---
 

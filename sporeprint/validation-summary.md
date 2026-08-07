@@ -1,6 +1,6 @@
 +++
 title = "bingoCube Validation Summary"
-description = "Human-verifiable cryptographic commitment system — cross-bound bingo boards, progressive reveal, evolutionary reservoir computing. G65 protocol negotiation + C2 dual-socket IPC. 94 tests, pure Rust."
+description = "Human-verifiable cryptographic commitment system — cross-bound bingo boards, progressive reveal, evolutionary reservoir computing. G66 transport abstraction + G65 protocol negotiation + C2 dual-socket IPC. 104 tests, pure Rust."
 date = 2026-08-06
 
 [taxonomies]
@@ -10,10 +10,10 @@ springs = []
 
 ## Status
 
-- **Gate**: CLEAR — G65 protocol negotiation shipped (C2 dual-socket as fallback)
-- **Phase**: G65 (single-socket protocol negotiation: tarpc vs JSON-RPC)
+- **Gate**: CLEAR — G66 transport abstraction shipped (G65 + C2 intact)
+- **Phase**: G66 (silicon-agnostic: UDS / TCP / mesh transport injection)
 - **Edition**: 2024
-- **Tests**: 94 passing (7 core, 21 adapters, 47 nautilus, 18 IPC, 1 doctest)
+- **Tests**: 104 passing (7 core, 21 adapters, 47 nautilus, 28 IPC, 1 doctest)
 - **Coverage**: 84% line (llvm-cov), fail-under: 80%
 - **Clippy**: 0 warnings (`pedantic` + `nursery`, `-D warnings`)
 - **Unsafe**: zero (`forbid(unsafe_code)` workspace-wide)
@@ -49,7 +49,7 @@ springs = []
 | `bingocube-adapters` | Visual (egui), audio, animation adapters | library (feature-gated) |
 | `bingocube-demos` | Interactive egui demo + library target | binary + library |
 | `bingocube-nautilus` | Evolutionary reservoir computing via board populations | library |
-| `bingocube-ipc` | JSON-RPC 2.0 + tarpc 0.37 IPC server (C2 + G65 negotiation) | library |
+| `bingocube-ipc` | JSON-RPC 2.0 + tarpc 0.37 IPC (C2 + G65 + G66 transport) | library |
 | `bingocube-cli` | UniBin binary (serve, demo, generate, verify) | binary |
 
 ## Composition Role

@@ -3,9 +3,10 @@
 //!
 //! JSON-RPC 2.0 and tarpc IPC for the `BingoCube` primal.
 //!
-//! Supports two modes:
+//! Supports three modes:
 //! - **C2 dual-socket** (default): `.sock` (JSON-RPC) + `.tarpc.sock` (tarpc)
 //! - **G65 single-socket** (`--negotiate`): one socket, protocol negotiation at connect time
+//! - **G66 transport abstraction**: platform-neutral `TransportEndpoint` (UDS / TCP / mesh)
 
 #![warn(missing_docs)]
 
@@ -17,6 +18,7 @@ mod server;
 mod service;
 mod socket;
 mod state;
+pub mod transport;
 mod types;
 
 #[cfg(feature = "tarpc")]
@@ -37,6 +39,7 @@ pub use socket::{
     prepare_socket_path, resolve_socket_dir, tarpc_socket_from_jsonrpc, tarpc_socket_path,
 };
 pub use state::{ServerState, SharedState, new_shared_state};
+pub use transport::{TransportEndpoint, TransportListener, TransportStream, connect_transport};
 pub use types::{
     ConfigParam, ConfigPreset, CryptoCommitParams, CryptoRevealParams, CryptoVerifyParams,
     ReservoirCreateParams, ReservoirEvolveParams, ReservoirPredictParams, SeedParam, SubCubeWire,

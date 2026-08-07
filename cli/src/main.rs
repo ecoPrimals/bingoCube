@@ -5,8 +5,8 @@ use std::path::PathBuf;
 
 use bingocube_core::BingoCube;
 use bingocube_ipc::{
-    ConfigParam, ConfigPreset, CryptoVerifyParams, SeedParam, ServeConfig, SubCubeWire, VERSION,
-    commitment_hash, resolve_socket_dir, serve,
+    ConfigParam, ConfigPreset, CryptoVerifyParams, SeedParam, ServeConfig, SubCubeWire,
+    TransportEndpoint, VERSION, commitment_hash, resolve_socket_dir, serve,
 };
 use clap::{CommandFactory, Parser, Subcommand};
 use serde_json::json;
@@ -21,23 +21,24 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Start JSON-RPC (+ tarpc) IPC servers.
+    /// Start IPC server (G66 transport-abstract).
     Serve {
-        /// Directory for `.sock` files.
+        /// Transport endpoint as JSON. Overrides --socket-dir.
+        /// Example: '{"transport":"tcp","host":"127.0.0.1","port":7700}'
+        #[arg(long, env = "TRANSPORT_ENDPOINT")]
+        transport: Option<String>,
+
+        /// Directory for `.sock` files (UDS mode, default on Unix).
         #[arg(long, default_value = "/run/bingocube")]
         socket_dir: PathBuf,
 
-        /// Disable the tarpc binary socket.
+        /// Disable the tarpc binary socket (C2 dual-socket).
         #[arg(long)]
         no_tarpc: bool,
 
         /// G65 single-socket protocol negotiation (tarpc vs JSON-RPC on one socket).
         #[arg(long, env = "BINGOCUBE_NEGOTIATE")]
         negotiate: bool,
-
-        /// Optional TCP fallback port on 127.0.0.1 for JSON-RPC.
-        #[arg(long)]
-        tcp_port: Option<u16>,
     },
     /// Launch the interactive egui demo.
     Demo,
@@ -82,6 +83,20 @@ fn parse_config(name: &str) -> Result<ConfigParam, String> {
     }
 }
 
+fn resolve_endpoint(
+    transport: Option<String>,
+    socket_dir: PathBuf,
+) -> Result<TransportEndpoint, Box<dyn std::error::Error>> {
+    if let Some(json) = transport {
+        Ok(serde_json::from_str(&json)?)
+    } else {
+        Ok(TransportEndpoint::platform_default(
+            "bingocube",
+            &resolve_socket_dir(Some(socket_dir)),
+        ))
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
@@ -89,30 +104,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match cli.command {
         None => {
-            // clap prints help when no subcommand and --help is passed; for bare invocation show help.
             Cli::command().print_help()?;
             println!();
         }
         Some(Commands::Serve {
+            transport,
             socket_dir,
             no_tarpc,
             negotiate,
-            tcp_port,
         }) => {
-            let config = ServeConfig {
-                socket_dir: resolve_socket_dir(Some(socket_dir)),
-                enable_tarpc: !no_tarpc,
-                negotiate,
-                tcp_port,
-            };
+            let endpoint = resolve_endpoint(transport, socket_dir)?;
+            tracing::info!(endpoint = %endpoint, "resolved transport endpoint");
             if negotiate {
                 tracing::info!("G65 single-socket protocol negotiation enabled");
             }
+            let config = ServeConfig {
+                endpoint,
+                enable_tarpc: !no_tarpc,
+                negotiate,
+            };
             let endpoints = serve(config).await?;
             tracing::info!(
-                jsonrpc = %endpoints.jsonrpc_socket.display(),
-                tarpc = ?endpoints.tarpc_socket.as_ref().map(|p| p.display().to_string()),
-                tcp = ?endpoints.tcp_addr,
+                primary = %endpoints.primary,
+                tarpc = ?endpoints.tarpc.as_ref().map(std::string::ToString::to_string),
                 "servers stopped"
             );
         }

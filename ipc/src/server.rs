@@ -1,41 +1,37 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-//! Async JSON-RPC server on Unix domain sockets with optional TCP fallback.
+//! Async IPC server using G66 transport abstraction.
 
-use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use bingocube_nautilus::InstanceId;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::net::{TcpListener, UnixListener};
 use tokio::sync::watch;
 
 use crate::dispatch::dispatch;
 use crate::error::IpcError;
 use crate::negotiation::{IpcProtocol, negotiate_server_outcome};
 use crate::protocol::{JsonRpcRequest, JsonRpcResponse};
-use crate::socket::{prepare_socket_path, resolve_socket_dir};
+use crate::socket::resolve_socket_dir;
 use crate::state::{SharedState, new_shared_state};
+use crate::transport::{TransportEndpoint, TransportListener, TransportStream};
 
 /// Configuration for the IPC server.
 #[derive(Debug, Clone)]
 pub struct ServeConfig {
-    /// Directory for Unix socket files.
-    pub socket_dir: PathBuf,
-    /// Enable the tarpc binary socket (C2 dual-socket pattern).
+    /// Primary listener endpoint (UDS, TCP, or injected via `TRANSPORT_ENDPOINT`).
+    pub endpoint: TransportEndpoint,
+    /// Enable the tarpc binary socket (C2 dual-socket pattern, UDS-only).
     pub enable_tarpc: bool,
-    /// G65 single-socket protocol negotiation on the JSON-RPC listener.
+    /// G65 single-socket protocol negotiation on the primary listener.
     pub negotiate: bool,
-    /// Optional TCP fallback port (`127.0.0.1`).
-    pub tcp_port: Option<u16>,
 }
 
 impl Default for ServeConfig {
     fn default() -> Self {
         Self {
-            socket_dir: resolve_socket_dir(None),
+            endpoint: TransportEndpoint::platform_default("bingocube", &resolve_socket_dir(None)),
             enable_tarpc: true,
             negotiate: false,
-            tcp_port: None,
         }
     }
 }
@@ -43,15 +39,13 @@ impl Default for ServeConfig {
 /// Resolved bind addresses after server startup.
 #[derive(Debug, Clone)]
 pub struct BoundEndpoints {
-    /// JSON-RPC Unix socket path.
-    pub jsonrpc_socket: PathBuf,
-    /// tarpc Unix socket path (when enabled).
-    pub tarpc_socket: Option<PathBuf>,
-    /// TCP fallback address (when enabled).
-    pub tcp_addr: Option<std::net::SocketAddr>,
+    /// Primary listener endpoint (concrete, with resolved port).
+    pub primary: TransportEndpoint,
+    /// tarpc C2 endpoint (UDS-only, when enabled).
+    pub tarpc: Option<TransportEndpoint>,
 }
 
-/// Wait for SIGINT or SIGTERM (Unix).
+/// Wait for SIGINT or SIGTERM.
 pub async fn wait_for_shutdown() {
     let ctrl_c = tokio::signal::ctrl_c();
 
@@ -79,125 +73,107 @@ pub async fn wait_for_shutdown() {
     }
 }
 
-/// Start JSON-RPC (and optionally tarpc) servers until shutdown.
+/// Start the IPC server on the configured transport until shutdown.
 ///
 /// # Errors
 ///
-/// Returns an error when socket binding or tarpc startup fails.
+/// Returns an error when the transport cannot be bound.
 pub async fn serve(config: ServeConfig) -> Result<BoundEndpoints, IpcError> {
     let hostname = std::env::var("HOSTNAME").unwrap_or_else(|_| "bingocube".to_owned());
     let instance_id = InstanceId::new(&hostname);
     let state = new_shared_state(instance_id);
 
-    let jsonrpc_path = crate::socket::jsonrpc_socket_path(&config.socket_dir);
-    prepare_socket_path(&jsonrpc_path)?;
+    let listener = TransportListener::bind(&config.endpoint)?;
+    let bound = listener.local_endpoint()?;
 
     let (shutdown_tx, shutdown_rx) = watch::channel(());
 
-    let jsonrpc_handle = spawn_jsonrpc_unix(
-        &jsonrpc_path,
+    let handle = spawn_listener(
+        listener,
         Arc::clone(&state),
         shutdown_rx.clone(),
         config.negotiate,
     );
 
-    let tarpc_socket = if config.negotiate {
-        None
-    } else if config.enable_tarpc {
-        #[cfg(feature = "tarpc")]
-        {
-            let tarpc_path = crate::socket::tarpc_socket_path(&config.socket_dir);
-            crate::tarpc::serve_tarpc(&tarpc_path, Arc::clone(&state), shutdown_rx.clone())?;
-            Some(tarpc_path)
-        }
-        #[cfg(not(feature = "tarpc"))]
-        {
-            None
-        }
-    } else {
-        None
-    };
+    let tarpc_endpoint = resolve_tarpc_endpoint(&config, &state, shutdown_rx.clone());
 
-    let tcp_addr = if let Some(port) = config.tcp_port {
-        Some(spawn_jsonrpc_tcp(
-            port,
-            Arc::clone(&state),
-            shutdown_rx.clone(),
-        )?)
-    } else {
-        None
-    };
-
-    tracing::info!(path = %jsonrpc_path.display(), "JSON-RPC server listening");
+    tracing::info!(endpoint = %bound, "server listening");
     if config.negotiate {
         tracing::info!("G65 single-socket protocol negotiation active");
     }
-    if let Some(ref tarpc) = tarpc_socket {
-        tracing::info!(path = %tarpc.display(), "tarpc server listening");
-    }
-    if let Some(addr) = tcp_addr {
-        tracing::info!(%addr, "JSON-RPC TCP fallback listening");
+    if let Some(ref tarpc) = tarpc_endpoint {
+        tracing::info!(endpoint = %tarpc, "tarpc C2 server listening");
     }
 
     wait_for_shutdown().await;
     tracing::info!("shutdown signal received, stopping servers");
     let _ = shutdown_tx.send(());
 
-    let _ = jsonrpc_handle.await;
-    cleanup_socket(&jsonrpc_path);
-    if let Some(ref tarpc) = tarpc_socket {
-        cleanup_socket(tarpc);
-    }
+    let _ = handle.await;
 
     Ok(BoundEndpoints {
-        jsonrpc_socket: jsonrpc_path,
-        tarpc_socket,
-        tcp_addr,
+        primary: bound,
+        tarpc: tarpc_endpoint,
     })
 }
 
-fn cleanup_socket(path: &Path) {
-    if path.exists()
-        && let Err(e) = std::fs::remove_file(path)
-    {
-        tracing::warn!(path = %path.display(), error = %e, "failed to remove socket file");
+#[allow(unused_variables)]
+fn resolve_tarpc_endpoint(
+    config: &ServeConfig,
+    state: &SharedState,
+    shutdown_rx: watch::Receiver<()>,
+) -> Option<TransportEndpoint> {
+    if config.negotiate || !config.enable_tarpc {
+        return None;
     }
+
+    #[cfg(all(unix, feature = "tarpc"))]
+    {
+        if let TransportEndpoint::Uds { ref path } = config.endpoint {
+            let tarpc_path = crate::socket::tarpc_socket_from_jsonrpc(std::path::Path::new(path));
+            match crate::tarpc::serve_tarpc(&tarpc_path, Arc::clone(state), shutdown_rx) {
+                Ok(()) => {
+                    return Some(TransportEndpoint::Uds {
+                        path: tarpc_path.to_string_lossy().into_owned(),
+                    });
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "tarpc C2 startup failed");
+                }
+            }
+        } else {
+            tracing::debug!("tarpc C2 dual-socket requires UDS primary endpoint");
+        }
+    }
+
+    None
 }
 
-fn spawn_jsonrpc_unix(
-    path: &Path,
+fn spawn_listener(
+    listener: TransportListener,
     state: SharedState,
     mut shutdown_rx: watch::Receiver<()>,
     negotiate: bool,
 ) -> tokio::task::JoinHandle<()> {
-    let path = path.to_path_buf();
+    let server_supported = IpcProtocol::all_supported();
+
     tokio::spawn(async move {
-        let listener = match UnixListener::bind(&path) {
-            Ok(l) => l,
-            Err(e) => {
-                tracing::error!(path = %path.display(), error = %e, "failed to bind unix socket");
-                return;
-            }
-        };
-
-        let server_supported = IpcProtocol::all_supported();
-
         loop {
             tokio::select! {
                 accept = listener.accept() => {
                     match accept {
-                        Ok((stream, _)) => {
+                        Ok(stream) => {
                             let state = Arc::clone(&state);
-                            let server_supported = server_supported.clone();
+                            let supported = server_supported.clone();
                             tokio::spawn(async move {
                                 if negotiate {
-                                    handle_negotiated_connection(stream, state, &server_supported).await;
+                                    handle_negotiated_connection(stream, state, &supported).await;
                                 } else if let Err(e) = handle_connection(stream, state, None).await {
                                     tracing::debug!(error = %e, "connection closed with error");
                                 }
                             });
                         }
-                        Err(e) => tracing::warn!(error = %e, "unix accept failed"),
+                        Err(e) => tracing::warn!(error = %e, "accept failed"),
                     }
                 }
                 changed = shutdown_rx.changed() => {
@@ -207,12 +183,12 @@ fn spawn_jsonrpc_unix(
                 }
             }
         }
-        cleanup_socket(&path);
+        listener.cleanup();
     })
 }
 
 async fn handle_negotiated_connection(
-    mut stream: impl tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+    mut stream: TransportStream,
     state: SharedState,
     server_supported: &[IpcProtocol],
 ) {
@@ -220,7 +196,7 @@ async fn handle_negotiated_connection(
         Ok(outcome) => match outcome.protocol {
             Some(IpcProtocol::Tarpc) => {
                 tracing::info!(
-                    "G65 negotiated tarpc (stub: closing connection until transport wrapping lands)"
+                    "G65 negotiated tarpc (stub: full transport wrapping in convergence)"
                 );
             }
             Some(IpcProtocol::JsonRpc) | None => {
@@ -238,48 +214,8 @@ async fn handle_negotiated_connection(
     }
 }
 
-fn spawn_jsonrpc_tcp(
-    port: u16,
-    state: SharedState,
-    shutdown_rx: watch::Receiver<()>,
-) -> Result<std::net::SocketAddr, IpcError> {
-    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
-    let listener = std::net::TcpListener::bind(addr)?;
-    listener.set_nonblocking(true)?;
-    let local_addr = listener.local_addr()?;
-    let listener = TcpListener::from_std(listener)?;
-
-    tokio::spawn(async move {
-        let mut shutdown_rx = shutdown_rx;
-        loop {
-            tokio::select! {
-                accept = listener.accept() => {
-                    match accept {
-                        Ok((stream, _)) => {
-                            let state = Arc::clone(&state);
-                            tokio::spawn(async move {
-                                if let Err(e) = handle_connection(stream, state, None).await {
-                                    tracing::debug!(error = %e, "tcp connection error");
-                                }
-                            });
-                        }
-                        Err(e) => tracing::warn!(error = %e, "tcp accept failed"),
-                    }
-                }
-                changed = shutdown_rx.changed() => {
-                    if changed.is_ok() {
-                        break;
-                    }
-                }
-            }
-        }
-    });
-
-    Ok(local_addr)
-}
-
 async fn handle_connection(
-    stream: impl tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+    stream: TransportStream,
     state: SharedState,
     initial_line: Option<String>,
 ) -> Result<(), IpcError> {
@@ -341,29 +277,69 @@ async fn process_line(line: &str, state: &SharedState) -> JsonRpcResponse {
 mod tests {
     use super::*;
     use crate::state::ServerState;
+    use crate::transport::connect_transport;
     use bingocube_nautilus::InstanceId;
     use serde_json::json;
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-    use tokio::net::UnixStream;
     use tokio::sync::RwLock;
 
+    async fn start_test_server(
+        endpoint: &TransportEndpoint,
+        negotiate: bool,
+    ) -> (TransportEndpoint, watch::Sender<()>) {
+        let listener = TransportListener::bind(endpoint).expect("bind");
+        let bound = listener.local_endpoint().expect("local_endpoint");
+        let state = Arc::new(RwLock::new(ServerState::new(InstanceId::new("test"))));
+        let (tx, rx) = watch::channel(());
+        spawn_listener(listener, state, rx, negotiate);
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        (bound, tx)
+    }
+
     #[tokio::test]
-    async fn unix_jsonrpc_health_liveness() {
-        let dir = std::env::temp_dir().join(format!("bingocube-ipc-test-{}", std::process::id()));
+    async fn tcp_jsonrpc_health_liveness() {
+        let ep = TransportEndpoint::Tcp {
+            host: "127.0.0.1".to_owned(),
+            port: 0,
+        };
+        let (bound, _tx) = start_test_server(&ep, false).await;
+
+        let stream = connect_transport(&bound).await.expect("connect");
+        let (reader, mut writer) = tokio::io::split(stream);
+
+        let req = json!({
+            "jsonrpc": "2.0",
+            "method": "health.liveness",
+            "params": {},
+            "id": 1
+        });
+        let mut payload = serde_json::to_string(&req).expect("json");
+        payload.push('\n');
+        writer.write_all(payload.as_bytes()).await.expect("write");
+        writer.shutdown().await.expect("shutdown");
+
+        let mut lines = BufReader::new(reader).lines();
+        let line = lines.next_line().await.expect("read").expect("line");
+        let resp: serde_json::Value = serde_json::from_str(&line).expect("parse");
+        assert_eq!(resp["result"]["status"], "alive");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn uds_jsonrpc_health_liveness() {
+        let dir = std::env::temp_dir().join(format!("bingocube-g66-test-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("mkdir");
         let socket_path = dir.join("test.sock");
-        prepare_socket_path(&socket_path).expect("prepare");
 
-        let state = Arc::new(RwLock::new(ServerState::new(InstanceId::new("test"))));
-        let (_tx, shutdown_rx) = watch::channel(());
-        spawn_jsonrpc_unix(&socket_path, state, shutdown_rx, false);
+        let ep = TransportEndpoint::Uds {
+            path: socket_path.to_string_lossy().into_owned(),
+        };
+        let (bound, _tx) = start_test_server(&ep, false).await;
 
-        // Give the listener time to bind.
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        let stream = connect_transport(&bound).await.expect("connect");
+        let (reader, mut writer) = tokio::io::split(stream);
 
-        let stream = UnixStream::connect(&socket_path).await.expect("connect");
-        let (reader, mut writer) = stream.into_split();
         let req = json!({
             "jsonrpc": "2.0",
             "method": "health.liveness",
@@ -380,7 +356,6 @@ mod tests {
         let resp: serde_json::Value = serde_json::from_str(&line).expect("parse");
         assert_eq!(resp["result"]["status"], "alive");
 
-        let _ = std::fs::remove_file(&socket_path);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

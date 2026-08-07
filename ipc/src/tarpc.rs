@@ -361,9 +361,13 @@ impl BingoCubeTarpc for TarpcHandler {
 
 /// Start the tarpc Unix socket server (non-blocking spawn).
 ///
+/// C2 dual-socket pattern — UDS only. G65 negotiation handles tarpc on
+/// any transport via the unified listener.
+///
 /// # Errors
 ///
 /// Returns an error when the socket cannot be prepared or bound.
+#[cfg(unix)]
 pub(crate) fn serve_tarpc(
     path: &Path,
     state: SharedState,
