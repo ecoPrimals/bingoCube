@@ -75,7 +75,15 @@ pub struct Config {
     /// Universe size (0..universe_size-1)
     pub universe_size: usize,
 
-    /// Color palette size
+    /// Color palette size — the **numeric base** of the epitope sort (Paper 48).
+    ///
+    /// `palette_size` determines how many groups each scalar value is sorted into
+    /// via `scalar % palette_size`. This modular reduction IS the epitope sort:
+    /// it discards within-group variation and preserves only group assignment.
+    ///
+    /// Standard configs: 16 (hex/base-16), 64 (base-64), 256 (base-256).
+    /// Larger palette = finer epitope granularity = more structure visible =
+    /// harder to learn distribution = stronger forgery resistance.
     pub palette_size: usize,
 
     /// Optional: Position of free cell (row, col)
