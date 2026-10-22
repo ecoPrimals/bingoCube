@@ -1,11 +1,14 @@
 [package]
-name = "bingocube-adapters"
+name = "primal-bingocube-adapters"
 description = "Visualization adapters for BingoCube - helps systems render BingoCube data"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
+
+[lib]
+name = "bingocube_adapters"
 
 # Same baseline as workspace lints, plus targeted allows for egui/animation/audio glue.
 [lints.rust]

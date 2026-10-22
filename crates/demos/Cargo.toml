@@ -1,5 +1,5 @@
 [package]
-name = "bingocube-demos"
+name = "primal-bingocube-demos"
 description = "Interactive demonstrations of BingoCube"
 version.workspace = true
 edition.workspace = true

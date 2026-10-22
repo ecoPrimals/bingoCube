@@ -1,11 +1,14 @@
 [package]
-name = "bingocube-core"
+name = "primal-bingocube-core"
 description = "Core BingoCube implementation: two-board cross-binding with progressive reveal"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
+
+[lib]
+name = "bingocube_core"
 
 [lints]
 workspace = true

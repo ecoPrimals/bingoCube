@@ -35,11 +35,17 @@ codegen-units = 1
 strip = true
 
 [workspace.dependencies]
+<<<<<<< Updated upstream
 bingocube-core = { path = "crates/core", version = "0.5.0" }
 bingocube-adapters = { path = "crates/adapters", version = "0.5.0" }
 bingocube-nautilus = { path = "crates/nautilus", version = "0.5.0" }
 bingocube-ipc = { path = "crates/ipc", version = "0.5.0" }
 bingocube-demos = { path = "crates/demos", version = "0.5.0" }
+=======
+bingocube-core = { package = "primal-bingocube-core", path = "core", version = "0.1.1" }
+bingocube-adapters = { package = "primal-bingocube-adapters", path = "adapters", version = "0.1.1" }
+bingocube-nautilus = { package = "primal-bingocube-nautilus", path = "nautilus", version = "0.1.1" }
+>>>>>>> Stashed changes
 blake3 = { version = "1.5", default-features = false, features = ["pure"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

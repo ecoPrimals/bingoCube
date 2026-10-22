@@ -1,11 +1,14 @@
 [package]
-name = "bingocube-nautilus"
+name = "primal-bingocube-nautilus"
 description = "Evolutionary reservoir computing via BingoCube board populations — the nautilus shell"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
+
+[lib]
+name = "bingocube_nautilus"
 
 # Same baseline as workspace lints; nautilus is numerical / ML-style code with intentional patterns.
 [lints.rust]
