@@ -2,7 +2,15 @@
 
 **Human-Verifiable Cryptographic Commitment System**
 
+[![crates.io](https://img.shields.io/crates/v/primal-bingocube-core.svg)](https://crates.io/crates/primal-bingocube-core)
+[![docs.rs](https://docs.rs/primal-bingocube-core/badge.svg)](https://docs.rs/primal-bingocube-core)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-blue.svg)](LICENSE)
+
+```sh
+cargo add primal-bingocube-core
+```
+
+> **Cite this work**: [primals.eco/cite](https://primals.eco/cite) · **ORCID**: [0009-0004-2141-0321](https://orcid.org/0009-0004-2141-0321)
 
 > A pure cryptographic tool for creating memorable, visual, and auditory patterns that any system can use for identity verification, peer trust, content fingerprinting, and computation proofs.
 
